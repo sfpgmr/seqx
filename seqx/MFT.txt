@@ -1,0 +1,71 @@
+
+**MFT_CATEGORY_AUDIO_DECODER**
+
+Microsoft Dolby Digital Plus Decoder MFT
+WMAudio Decoder MFT
+Microsoft AAC Audio Decoder MFT
+GSM ACM Wrapper MFT
+WMAPro over S/PDIF MFT
+Microsoft MPEG Audio Decoder MFT
+WMSpeech Decoder DMO
+G711 Wrapper MFT
+IMA ADPCM ACM Wrapper MFT
+MP3 Decoder MFT
+ADPCM ACM Wrapper MFT
+
+**MFT_CATEGORY_AUDIO_EFFECT**
+
+AEC
+Resampler MFT
+
+**MFT_CATEGORY_AUDIO_ENCODER**
+
+MP3 Encoder ACM Wrapper MFT
+WM Speech Encoder DMO
+Microsoft MPEG-2 Audio Encoder MFT
+WMAudio Encoder MFT
+Microsoft AAC Audio Encoder MFT
+Microsoft Dolby Digital Encoder MFT
+
+**MFT_CATEGORY_DEMULTIPLEXER**
+
+
+**MFT_CATEGORY_MULTIPLEXER**
+
+Microsoft MPEG2 Multiplexer MFT
+
+**MFT_CATEGORY_OTHER**
+
+Microsoft H264 Video Remux (MPEG2TSToMP4) MFT
+
+**MFT_CATEGORY_VIDEO_DECODER**
+
+Microsoft MPEG Video Decoder MFT
+DV Decoder MFT
+Mpeg4s Decoder MFT
+Microsoft H264 Video Decoder MFT
+WMV Screen decoder MFT
+WMVideo Decoder MFT
+MJPEG Decoder MFT
+Mpeg43 Decoder MFT
+Mpeg4 Decoder MFT
+
+**MFT_CATEGORY_VIDEO_EFFECT**
+
+Frame Rate Converter
+Resizer MFT
+VideoStabilization MFT
+Color Control
+Color Converter MFT
+
+**MFT_CATEGORY_VIDEO_ENCODER**
+
+Intel® Quick Sync Video H.264 Encoder MFT
+H264 Encoder MFT
+WMVideo8 Encoder MFT
+WMVideo9 Encoder MFT
+Microsoft MPEG-2 Video Encoder MFT
+
+**MFT_CATEGORY_VIDEO_PROCESSOR**
+
+Microsoft Video Processor MFT
