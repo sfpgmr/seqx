@@ -223,13 +223,6 @@ namespace sf {
         boost::filesystem::remove(config_path);
       }
     }
-#ifdef _DEBUG
-    wdout << L"================================================" << std::endl;
-    wdout << id_ << L"\n" << display_name_ << std::endl;
-    wdout << params.latency << std::endl;
-    wdout << L"================================================" << std::endl;
-#endif
-
   }
 
   void wasapi_device_manager::stop_watching()
@@ -438,6 +431,13 @@ void wasapi_device_manager::output_stopped(en::DeviceWatcher^ sender, Platform::
 void wasapi_device_manager::input_added(Windows::Devices::Enumeration::DeviceWatcher^ sender, Windows::Devices::Enumeration::DeviceInformation^ deviceInfo)
 {
   device_info info(deviceInfo);
+  #ifdef _DEBUG
+    wdout << L"================================================" << std::endl;
+    wdout << info.id_ << L"\n" << info.display_name_ << std::endl;
+    wdout << info.params.latency << std::endl;
+    wdout << L"================================================" << std::endl;
+ #endif
+
   IAudioClient2Ptr c;
   // オーディオクライアントを取得
   //    THROW_IF_ERR(ActivateAudioInterface(info.id_.c_str(),__uuidof(IAudioClient2),&c)      );          

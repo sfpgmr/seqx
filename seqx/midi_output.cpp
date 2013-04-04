@@ -9,7 +9,7 @@ namespace sf {
   
   midi_output::device_infos_t midi_output::devices_;
 
-  const std::wstring midi_output_error::get_error_string(boost::uint32_t id)
+  const std::wstring midi_output_error::get_error_string(uint32_t id)
   {
     wchar_t buf[MAXCHAR] = {};
 
@@ -21,14 +21,14 @@ namespace sf {
 
   void midi_output::enum_devices()
   {
-    const boost::uint32_t num_devs_ = midiOutGetNumDevs();
+    const uint32_t num_devs_ = midiOutGetNumDevs();
     if(num_devs_ > 0)
     {
       devices_.clear();
-      for( boost::uint32_t dev_id_ = 0;dev_id_ < num_devs_;++dev_id_)
+      for( uint32_t dev_id_ = 0;dev_id_ < num_devs_;++dev_id_)
       {
         MIDIOUTCAPS2 device_infos_2_;
-        boost::uint32_t result = midiOutGetDevCaps(dev_id_,reinterpret_cast<LPMIDIOUTCAPS>(&device_infos_2_),sizeof(MIDIOUTCAPS2));
+        uint32_t result = midiOutGetDevCaps(dev_id_,reinterpret_cast<LPMIDIOUTCAPS>(&device_infos_2_),sizeof(MIDIOUTCAPS2));
         if(result != MMSYSERR_NOERROR)
         {
            throw midi_output_error(result);
@@ -40,7 +40,7 @@ namespace sf {
     }
 
   }
-  midi_output::midi_output(boost::uint32_t id) 
+  midi_output::midi_output(uint32_t id) 
     : dev_id_(id),hmidiout_(NULL)
   {
     open();

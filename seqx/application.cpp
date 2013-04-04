@@ -79,6 +79,7 @@ namespace sf {
 
     // wcoutで文字化けしないように、ロケールをデフォルト言語に設定する
     std::wcout.imbue(std::locale(""));
+    wdout.imbue(std::locale(""));
 
     // 2重起動の防止処理
     SECURITY_DESCRIPTOR sd;
@@ -109,11 +110,12 @@ namespace sf {
     };
     InitCommonControlsEx(&common_ctrls);
 
-    // Win RTの初期化
-    RoInitialize(RO_INIT_MULTITHREADED);
 
     // COMをマルチスレッドで初期化
     sf::com_initialize init(0,multi_threaded);
+
+    // Win RTの初期化
+    RoInitialize(RO_INIT_MULTITHREADED);
 
     // プロセスの優先順位をPro Audioに変更する
     sf::av_mm_thread_characteristics avmm(wstring(L"Pro Audio"));
@@ -124,6 +126,13 @@ namespace sf {
 
     // マルチメディアタイマの精度を1msに設定する
     timeBeginPeriod(1);
+
+    // デバイス監視の開始
+    sf::wasapi_device_manager::instance()->start_watching();
+
+    // デバイス列挙を待つ
+    sf::wasapi_device_manager::instance()->wait_enum_devices();
+    // sf::wasapi_device_manager::instance()->current_output_device();
 
     // ダイアログウィンドウを作成する
     window_ = sf::create_toplevel_window(

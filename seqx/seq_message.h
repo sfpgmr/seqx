@@ -5,7 +5,7 @@
 #include "midi_message.h"
 namespace sf {
    
-  typedef boost::uint32_t delta_time_t;
+  typedef uint32_t delta_time_t;
 
   /** シーケンス・メッセージのベースクラス */
   struct seq_msg_base

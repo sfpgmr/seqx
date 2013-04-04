@@ -370,7 +370,7 @@ namespace sf{
   template<typename ShareModePolicy,typename DrivenPolicy,typename IOClientPolicy> 
   void wasapi_base<ShareModePolicy,DrivenPolicy,IOClientPolicy>::create_wave_data(){
     // サイン波の生成
-    boost::uint32_t buffer_size_in_bytes = buffer_size_ * mix_format_.Format.nBlockAlign;
+    uint32_t buffer_size_in_bytes = buffer_size_ * mix_format_.Format.nBlockAlign;
     size_t render_data_length = mix_format_.Format.nSamplesPerSec * 10 /* 秒 */ * mix_format_.Format.nBlockAlign / sizeof(short);
     tone_buffer_.reserve(render_data_length);
 

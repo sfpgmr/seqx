@@ -40,7 +40,7 @@ TODO: リサイズに対応する
 #include "timer.h"
 #include "exception.h"
 #include "application.h"
-//#include "config_tab_dialog.h"
+#include "config_tab_dialog.h"
 #include "info_tab_dialog.h"
 
 #if _DEBUG
@@ -50,14 +50,14 @@ TODO: リサイズに対応する
 #endif
 
 
-//#include "seq_tab_dialog.h"
+#include "seq_tab_dialog.h"
 
 //#pragma comment( lib, "dxguid.lib" )
 //#pragma comment( lib, "d3d11.lib" )
-//#pragma comment( lib, "d3dx11.lib" )
+////#pragma comment( lib, "d3dx11.lib" )
 //#pragma comment( lib, "dxgi.lib" )
 //#pragma comment( lib, "d3dx9.lib" )   
-#pragma comment( lib, "Shlwapi.lib" ) 
+//#pragma comment( lib, "Shlwapi.lib" ) 
 
 #define THROW_IFERR(hres) \
   if (FAILED(hres)) { throw sf::win32_error_exception(hres); }
@@ -88,7 +88,7 @@ namespace sf
   //    //do more things
   //  }
   //  return hr;
-  //}
+  ////}
 
   //// 汎用情報格納用
   //struct mode_info 
@@ -315,21 +315,21 @@ namespace sf
       tab_dialogs_[TAB_INFO].show();
 
       // 設定タブの挿入
-      //tie.pszText = L"設定";
-      //TabCtrl_InsertItem(tab,TAB_CONFIG,&tie);
-      //tab_dialogs_.push_back(
-      //  new config_tab_dialog(*this,tab,TAB_CONFIG,L"config",L"config",HINST_THISCOMPONENT,MAKEINTRESOURCEW(IDD_CONFIG)) 
-      //  );
-      //TabCtrl_SetCurSel(tab,0);
-      //RECT rci;
-      //TabCtrl_GetItemRect(tab,0,&rci);
-      //RECT r;
-      ////TabCtrl_GetItemRect(tab,0,&r);
-      //GetClientRect(tab,&r);
-      //RECT rw;
-      //GetWindowRect(tab,&rw);
-      //POINT pt = {rw.left,rw.top + rci.bottom};
-      //ScreenToClient(hwnd_,&pt);
+      tie.pszText = L"設定";
+      TabCtrl_InsertItem(tab,TAB_CONFIG,&tie);
+      tab_dialogs_.push_back(
+        new config_tab_dialog(*this,tab,TAB_CONFIG,L"config",L"config",HINST_THISCOMPONENT,MAKEINTRESOURCEW(IDD_CONFIG)) 
+        );
+      TabCtrl_SetCurSel(tab,0);
+      RECT rci;
+      TabCtrl_GetItemRect(tab,0,&rci);
+      RECT r;
+      //TabCtrl_GetItemRect(tab,0,&r);
+      GetClientRect(tab,&r);
+      RECT rw;
+      GetWindowRect(tab,&rw);
+      POINT pt = {rw.left,rw.top + rci.bottom};
+      ScreenToClient(hwnd_,&pt);
 
       // シーケンサタブの挿入
       //tie.pszText = L"シーケンサ";

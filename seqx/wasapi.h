@@ -465,8 +465,8 @@ namespace sf {
 		bool is_enabled_;
 		bool is_start_;
 		boost::shared_ptr<win32_error_exception> exception_holder_;
-		boost::uint32_t num_of_frames_;
-		boost::uint32_t buffer_size_;
+		uint32_t num_of_frames_;
+		uint32_t buffer_size_;
 		uint64_t position_;
 		std::vector<short> tone_buffer_;
 		size_t buffer_in_periods_;//  = buffer_size_ / periods_per_buffer_;

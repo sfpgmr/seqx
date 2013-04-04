@@ -10,7 +10,7 @@ namespace sf {
   
   midi_input::device_infos_t midi_input::device_infos_;
 
-  const std::wstring midi_input_error::get_error_string(boost::uint32_t id)
+  const std::wstring midi_input_error::get_error_string(uint32_t id)
   {
     wchar_t buf[MAXCHAR] = {};
 
@@ -21,14 +21,14 @@ namespace sf {
   /** デバイスを列挙して、情報をコンテナに収める */
   void midi_input::enum_devices()
   {
-    const boost::uint32_t num_devs_ = midiInGetNumDevs();
+    const uint32_t num_devs_ = midiInGetNumDevs();
     if(num_devs_ > 0)
     {
       device_infos_.clear();
-      for( boost::uint32_t dev_id_ = 0;dev_id_ < num_devs_;++dev_id_)
+      for( uint32_t dev_id_ = 0;dev_id_ < num_devs_;++dev_id_)
       {
         MIDIINCAPS2 caps2_;
-        boost::uint32_t result = midiInGetDevCaps(dev_id_,reinterpret_cast<LPMIDIINCAPS>(&caps2_),sizeof(MIDIINCAPS2));
+        uint32_t result = midiInGetDevCaps(dev_id_,reinterpret_cast<LPMIDIINCAPS>(&caps2_),sizeof(MIDIINCAPS2));
         if(result != MMSYSERR_NOERROR)
         {
            throw midi_input_error(result);
@@ -41,7 +41,7 @@ namespace sf {
   }
 
   /** コンストラクタ */
-  midi_input::midi_input(boost::uint32_t id) 
+  midi_input::midi_input(uint32_t id) 
     : dev_id_(id),hmidiin_(NULL)
   {
     memset(&midi_buffer_info_,0,sizeof(midi_buffer_info_));
