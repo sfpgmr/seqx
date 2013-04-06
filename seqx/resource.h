@@ -1,4 +1,3 @@
-
 #ifndef IDC_STATIC
 #define IDC_STATIC (-1)
 #endif
@@ -23,8 +22,10 @@
 #define IDC_APPLY                               1003
 #define IDC_EDIT3                               1003
 #define IDC_INFO                                1003
+#define IDC_MIDI_INFO                           1003
 #define IDC_EDIT4                               1004
 #define IDC_INPUT_CHANNEL                       1004
+#define IDC_MIDI_CONFIG_APPLY                   1004
 #define IDC_EVENT_MODE                          1005
 #define IDC_PLAY                                1005
 #define IDC_SEQ_AREA                            1005

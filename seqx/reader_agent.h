@@ -34,7 +34,7 @@ public:
     exception() : win32_error_exception() {} ;
   };
 
-  reader_agent_t() : repeat_mode_(false) {};
+  reader_agent_t() : repeat_mode_(false) {change_status(status_none); };
   ~reader_agent_t(){};
 
 
@@ -46,6 +46,7 @@ public:
 public:
   enum reader_status
   {
+    status_none,
     status_config,
     status_config_ok,
     status_ready,

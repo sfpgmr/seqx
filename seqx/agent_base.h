@@ -81,6 +81,10 @@ namespace sf
       wait_status(wait_value);
     }
 
+    Concurrency::agent_status agent_status(){
+      return agent::status();
+    }
+
     int status(std::memory_order o = std::memory_order_seq_cst)
     {
       return status_.load(o);

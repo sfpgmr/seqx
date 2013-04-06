@@ -74,7 +74,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <LibraryPath>H:\libs\DirectXTK\Bin\Desktop\x64\Debug;$(LibraryPath)</LibraryPath>
+    <LibraryPath>H:\satoshi_documents\documents\Visual Studio 2012\Projects\seqx\seqx\x64\Debug;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -165,6 +165,7 @@
     <ClCompile Include="jumplist.cpp" />
     <ClCompile Include="logger.cpp" />
     <ClCompile Include="media_foundation.cpp" />
+    <ClCompile Include="midi_config_tab_dialog.cpp" />
     <ClCompile Include="midi_input.cpp" />
     <ClCompile Include="midi_output.cpp" />
     <ClCompile Include="mixer_agent.cpp" />
@@ -210,12 +211,14 @@
     <ClInclude Include="logger.h" />
     <ClInclude Include="media_foundation.h" />
     <ClInclude Include="message_loop.h" />
+    <ClInclude Include="midi_config_tab_dialog.h" />
     <ClInclude Include="midi_input.h" />
     <ClInclude Include="midi_message.h" />
     <ClInclude Include="midi_output.h" />
     <ClInclude Include="mixer_agent.h" />
     <ClInclude Include="output_agent.h" />
     <ClInclude Include="player.h" />
+    <ClInclude Include="reader_agent.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="ring_buffer.h" />
     <ClInclude Include="sequencer.h" />

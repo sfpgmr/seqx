@@ -42,6 +42,7 @@ TODO: リサイズに対応する
 #include "application.h"
 #include "config_tab_dialog.h"
 #include "info_tab_dialog.h"
+#include "midi_config_tab_dialog.h"
 
 #if _DEBUG
 #define _CRTDBG_MAP_ALLOC
@@ -268,6 +269,8 @@ namespace sf
     static const int TAB_INFO = 0;
     static const int TAB_CONFIG = 1;
     static const int TAB_SEQ = 2;
+    static const int TAB_MIDI_CONFIG = 3;
+
 
     impl(const std::wstring& menu_name,const std::wstring& name,bool fit_to_display,float width = 160,float height = 100) 
       : base_win32_dialog_t(menu_name,name,fit_to_display,width,height) 
@@ -332,11 +335,18 @@ namespace sf
       ScreenToClient(hwnd_,&pt);
 
       // シーケンサタブの挿入
-      //tie.pszText = L"シーケンサ";
-      //TabCtrl_InsertItem(tab,TAB_SEQ,&tie);
-      //tab_dialogs_.push_back(
-      //  new seq_tab_dialog(application::instance()->sequencer(),*this,tab,TAB_SEQ,L"sequencer",L"sequencer",HINST_THISCOMPONENT,MAKEINTRESOURCEW(IDD_SEQ))
-      //  );
+      tie.pszText = L"シーケンサ";
+      TabCtrl_InsertItem(tab,TAB_SEQ,&tie);
+      tab_dialogs_.push_back(
+        new seq_tab_dialog(application::instance()->sequencer(),*this,tab,TAB_SEQ,L"sequencer",L"sequencer",HINST_THISCOMPONENT,MAKEINTRESOURCEW(IDD_SEQ))
+        );
+
+      // MIDI設定タブの挿入
+      tie.pszText = L"MIDI設定";
+      TabCtrl_InsertItem(tab,TAB_MIDI_CONFIG,&tie);
+      tab_dialogs_.push_back(
+        new midi_config_tab_dialog(application::instance()->sequencer(),*this,tab,TAB_SEQ,L"MIDI設定",L"MIDI設定",HINST_THISCOMPONENT,MAKEINTRESOURCEW(IDD_MIDI_CONFIG))
+        );
 
       //GetRect(
 

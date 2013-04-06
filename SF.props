@@ -3,10 +3,10 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <IncludePath>H:\libs\DirectXTK\Inc;H:\libs\boost\include\boost-1_53;H:\libs\xbyak\xbyak;H:\libs\zlib125\zlib-1.2.5;H:\libs\lpng150\lpng150;$(IncludePath)</IncludePath>
+    <IncludePath>H:\libs\DirectXTK\Inc;H:\libs\boost\include\boost-1_53;H:\libs\xbyak\xbyak;H:\libs\zlib125\zlib-1.2.5;H:\libs\lpng150\lpng150;H:\libs\vst_sdk2_4_rev2\vstsdk2.4\pluginterfaces\vst2.x;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup>
-    <LibraryPath>H:\libs\zlib125\zlib-1.2.5;H:\libs\boost\lib;$(LibraryPath)</LibraryPath>
+    <LibraryPath>H:\libs\zlib125\zlib-1.2.5;H:\libs\boost\lib;H:\libs\DirectXTex\DirectXTex\x64\Debug;H:\libs\DirectXTK\Bin\Desktop_2012\x64\Debug;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>

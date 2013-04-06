@@ -134,9 +134,35 @@ namespace sf {
     sf::wasapi_device_manager::instance()->wait_enum_devices();
     // sf::wasapi_device_manager::instance()->current_output_device();
 
+    // MIDIデバイスの列挙
+    midi_input::enum_devices();
+    midi_output::enum_devices();
+
     // ダイアログウィンドウを作成する
     window_ = sf::create_toplevel_window(
       std::wstring(L"Media Player サンプル"),std::wstring(L"Media Player サンプル"));
+    ////  ファイルリーダーエージェントの起動
+    //reader_agent_.start();
+    //// キャプチャエージェントの起動
+    //input_agent_.start();
+    //// wasapi入力スレッドの起動
+    //input_agent_.wait_event();
+
+    // デフォルトの入出力デバイスをセットする
+    try {
+      // wasapi出力スレッドの起動
+      output_agent_.start();
+      output_agent_.wait_status(output_agent_t::status_device_config_ok);
+      apply_output_device_config
+        (wasapi_device_manager::instance()->current_output_device_index(),
+        wasapi_device_manager::instance()->current_output_device().params);
+      //apply_input_device_config
+      //  (wasapi_device_manager::instance()->current_input_device_index(),
+      //  wasapi_device_manager::instance()->current_input_device().params);
+    } catch (...) {
+
+    }
+
 
     // メッセージ処理ループ
     WPARAM ret = sf::dialog_message_loop(reinterpret_cast<HWND>(window_->raw_handle()))();
@@ -203,14 +229,20 @@ namespace sf {
   void application::apply_output_device_config(int device_index,wasapi_device_manager::device_info::params_t& params)
   {
     // スレッドの休止
-    int reader_status = reader_agent_.status();
-    reader_agent_.change_and_wait(reader_agent_t::status_config,reader_agent_t::status_config_ok);
+    if( reader_agent_.agent_status() == Concurrency::agent_status::agent_runnable &&
+      reader_agent_.agent_status() == Concurrency::agent_status::agent_started)
+    {
+      int reader_status = reader_agent_.status();
+      if(reader_status != reader_agent_t::status_none){
+        reader_agent_.change_and_wait(reader_agent_t::status_config,reader_agent_t::status_config_ok);
+      }
+    }
 
     // int mixer_status = mixer_agent_.status();
     // mixer_agent_.change_and_wait(mixer_agent_t::status_config,mixer_agent_t::status_config_ok);
 
-    int input_status = input_agent_.status();
-    if(input_status != input_agent_t::status_nodevice)
+    if( input_agent_.agent_status() == Concurrency::agent_status::agent_runnable &&
+      input_agent_.agent_status() == Concurrency::agent_status::agent_started)
     {
       input_agent_.change_and_wait(input_agent_t::status_pause,input_agent_t::status_pause_ok);
     }
@@ -220,12 +252,16 @@ namespace sf {
 
     //  mixer_agent_.init_buffer();
     //  mixer_agent_.change_and_wait(mixer_agent_t::status_process,mixer_agent_t::status_processing);
+    if( reader_agent_.agent_status() == Concurrency::agent_status::agent_runnable &&
+      reader_agent_.agent_status() == Concurrency::agent_status::agent_started){
+      reader_agent_.init_buffer();
+      reader_agent_.change_and_wait(reader_agent_t::status_ready,reader_agent_t::status_ready_ok);
+    }
 
-    reader_agent_.init_buffer();
-    reader_agent_.change_and_wait(reader_agent_t::status_ready,reader_agent_t::status_ready_ok);
-
-    if(input_status != input_agent_t::status_nodevice)
+    if( input_agent_.agent_status() == Concurrency::agent_status::agent_runnable &&
+      input_agent_.agent_status() == Concurrency::agent_status::agent_started)
     {
+      int input_status = input_agent_.status();
       input_agent_.init_buffer();
       //input_agent_.apply_config(
       //wasapi_device_manager::instance()->current_input_device_index(),

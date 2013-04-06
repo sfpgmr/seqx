@@ -71,7 +71,6 @@ struct get_buffer
   const uint32_t size() const { return buffer_size_;}
   const uint32_t size_byte() const {
     return buffer_size_ * audio_base_.get_frame_size();
-//    return audio_base_.get_buffer_byte_size();
   }
 private:
   uint32_t buffer_size_;
