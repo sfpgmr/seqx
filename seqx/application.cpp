@@ -135,8 +135,7 @@ namespace sf {
     // sf::wasapi_device_manager::instance()->current_output_device();
 
     // MIDIデバイスの列挙
-    midi_input::enum_devices();
-    midi_output::enum_devices();
+    const midi_device_manager::ptr& ptr = midi_device_manager::instance();
 
     // ダイアログウィンドウを作成する
     window_ = sf::create_toplevel_window(
@@ -169,6 +168,13 @@ namespace sf {
 
     // マルチメディアタイマの粒度を元に戻す。
     timeEndPeriod(1);
+
+    output_agent_.change_status(output_agent_t::status_exit);
+
+    //  スレッド終了待ち
+    //std::array<Concurrency::agent*,3> agents = {/*&mixer_agent_,*/&reader_agent_,&output_agent_,&input_agent_};
+    //Concurrency::agent::wait_for_all(agents.size(),&agents[0]);
+    Concurrency::agent::wait(&output_agent_);
 
     // プレイヤーのシャットダウン処理を行いリソースを解放する
 //    player_->process_event(sf::player::ev::Close());

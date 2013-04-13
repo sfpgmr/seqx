@@ -34,8 +34,7 @@
 #include "input_agent.h"
 #include "mixer_agent.h"
 #include "sequencer.h"
-#include "midi_input.h"
-#include "midi_output.h"
+#include "midi_device_manager.h"
 
 namespace sf {
 class application : public singleton<application>
@@ -148,19 +147,6 @@ private:
 
   HINSTANCE instance_handle_;
   int return_code_;
-
-//--------------------------------
-// シーケンサ
-//--------------------------------
-public:
-
-  std::unique_ptr<sf::midi_input>& midi_input(){return midi_input_;};
-  std::unique_ptr<sf::midi_output>& midi_output(){return midi_output_;};
-  
-private:
-
-  std::unique_ptr<sf::midi_input> midi_input_;
-  std::unique_ptr<sf::midi_output> midi_output_;
 
 // -----------------------------  
 // その他

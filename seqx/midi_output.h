@@ -7,11 +7,6 @@
 
 namespace sf {
 
-//  const int midi_ch_num = 16;
-//  const int control_change_num = 2;
-//  const int max_control_changes = 128;
-
-
   /** デバイスエラー時に投げる例外 */
   struct midi_output_error : sf::exception 
   {
@@ -40,21 +35,6 @@ namespace sf {
   struct midi_output
   {
     
-    /** MIDI IN インターフェース*/
-    struct device_infos_ {
-      device_infos_(const MIDIOUTCAPS2& value,const uint32_t dev_id) :id_(dev_id),name_(value.szPname),device_info_(value)
-      {
-      }
-      const uint32_t id() const { return id_;}
-      const std::wstring& name() const  {return name_;}
-    private:
-      const uint32_t id_;
-      const std::wstring name_;
-      MIDIOUTCAPS2 device_info_;
-    };
-
-    typedef boost::ptr_vector<device_infos_> device_infos_t;
-
     midi_output(uint32_t id);
     virtual ~midi_output();
 
@@ -91,7 +71,6 @@ namespace sf {
       throw_midi_output_error(result);
     }
 
-    static const device_infos_t & device_infos(){return devices_;};
     static void CALLBACK midi_out_proc(
       HMIDIOUT HMIDIOUT,  
       uint32_t wMsg,        
@@ -120,7 +99,6 @@ namespace sf {
       ::midiOutLongMsg(handle(),&header,sizeof(MIDIHDR));
     }
   private:
-    static device_infos_t devices_;
 //    uint32_t control_change_buffer_[midi_ch_num][control_change_num];
     HMIDIOUT hmidiout_;
     uint32_t dev_id_;

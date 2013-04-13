@@ -173,23 +173,24 @@ namespace sf
   void midi_config_tab_dialog::init_control()
   {
     create_device();
+    const midi_device_manager::ptr& manager = midi_device_manager::instance();
     // MIDI INPUT
     {
-      const midi_input::device_infos_t& input(midi_input::device_infos());
+      const midi_input_device_infos_t& input_infos(manager->midi_input_device_infos()); 
       HWND combo = GetDlgItem(hwnd_,IDC_MIDI_INPUT_DEVICE);
-      for(int i = 0;i < input.size();++i){
-        SendMessage(combo,CB_ADDSTRING,0,(LPARAM)input[i].name().data());
-        SendMessage(combo,CB_SETITEMDATA,i,input[i].id());
+      for(int i = 0;i < input_infos.size();++i){
+        SendMessage(combo,CB_ADDSTRING,0,(LPARAM)input_infos[i].name().c_str());
+        SendMessage(combo,CB_SETITEMDATA,i,input_infos[i].id());
       }
     }
 
     // MIDI OUTPUT
     {
-      const midi_output::device_infos_t& output(midi_output::device_infos());
+      const midi_output_device_infos_t& output_infos(manager->midi_output_device_infos()); 
       HWND combo = GetDlgItem(hwnd_,IDC_MIDI_OUTPUT_DEVICE);
-      for(int i = 0;i < output.size();++i){
-        SendMessage(combo,CB_ADDSTRING,0,(LPARAM)output[i].name().data());
-        SendMessage(combo,CB_SETITEMDATA,i,output[i].id());
+      for(int i = 0;i < output_infos.size();++i){
+        SendMessage(combo,CB_ADDSTRING,0,(LPARAM)output_infos[i].name().data());
+        SendMessage(combo,CB_SETITEMDATA,i,output_infos[i].id());
       }
     }
 

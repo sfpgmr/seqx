@@ -163,9 +163,11 @@
     <ClCompile Include="info_tab_dialog.cpp" />
     <ClCompile Include="input_agent.cpp" />
     <ClCompile Include="jumplist.cpp" />
+    <ClCompile Include="list_view.cpp" />
     <ClCompile Include="logger.cpp" />
     <ClCompile Include="media_foundation.cpp" />
     <ClCompile Include="midi_config_tab_dialog.cpp" />
+    <ClCompile Include="midi_device_manager.cpp" />
     <ClCompile Include="midi_input.cpp" />
     <ClCompile Include="midi_output.cpp" />
     <ClCompile Include="mixer_agent.cpp" />
@@ -178,7 +180,7 @@
     <ClCompile Include="seq_tab_dialog.cpp" />
     <ClCompile Include="sfmf.cpp" />
     <ClCompile Include="sf_com.cpp" />
-    <ClCompile Include="sf_windows.cpp" />
+    <ClCompile Include="sf_windows_base.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
@@ -208,10 +210,13 @@
     <ClInclude Include="info_tab_dialog.h" />
     <ClInclude Include="input_agent.h" />
     <ClInclude Include="jumplist.h" />
+    <ClInclude Include="list_view.h" />
     <ClInclude Include="logger.h" />
     <ClInclude Include="media_foundation.h" />
     <ClInclude Include="message_loop.h" />
+    <ClInclude Include="midi_base.h" />
     <ClInclude Include="midi_config_tab_dialog.h" />
+    <ClInclude Include="midi_device_manager.h" />
     <ClInclude Include="midi_input.h" />
     <ClInclude Include="midi_message.h" />
     <ClInclude Include="midi_output.h" />
@@ -228,6 +233,7 @@
     <ClInclude Include="sf_com.h" />
     <ClInclude Include="sf_memory.h" />
     <ClInclude Include="sf_windows.h" />
+    <ClInclude Include="sf_windows_base.h" />
     <ClInclude Include="singleton.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="tab_dialog.h" />

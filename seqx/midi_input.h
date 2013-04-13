@@ -4,6 +4,7 @@
 */
 //#include "midi_message.h"
 #include "exception.h"
+#include "midi_base.h"
 
 namespace sf {
 
@@ -42,23 +43,6 @@ namespace sf {
     
     typedef boost::signals2::signal<void (uint32_t wMsg,uint32_t midi_message,uint32_t time_stamp) > midi_message_arrived_t;
     midi_message_arrived_t midi_message_arrived;
-
-
-    /** MIDI IN インターフェース*/
-    struct caps {
-      caps(const MIDIINCAPS2& value,const uint32_t dev_id) :id_(dev_id),name_(value.szPname),device_info_(value)
-      {
-
-      }
-      const uint32_t id() const { return id_;}
-      const std::wstring& name() const  {return name_;}
-    private:
-      const uint32_t id_;
-      const std::wstring name_;
-      MIDIINCAPS2 device_info_;
-    };
-
-    typedef boost::ptr_vector<caps> device_infos_t;
 
     midi_input(uint32_t id);
     virtual ~midi_input();
@@ -124,9 +108,6 @@ namespace sf {
       ::midiInUnprepareHeader(hmidiin_,&midi_buffer_info_,sizeof(midi_buffer_info_));
     }
 
-    /** device_infos_のコンテナを返す */
-    static const device_infos_t & device_infos(){return device_infos_;};
-
     /** MIDI IN コールバック */
     static void CALLBACK midi_in_proc(
       HMIDIIN hMidiIn,  
@@ -138,14 +119,10 @@ namespace sf {
         //::OutputDebugStringW(L"input_proc\n");
         reinterpret_cast<midi_input*>(dwInstance)->midi_message_arrived(wMsg,dwParam1,dwParam2);
     }
-    /** device_infos_を列挙し、コンテナに情報を格納する */
-    static void enum_devices();
 
     /** ハンドルを返す */
     HMIDIIN handle() const {return hmidiin_;}
   private:
-    /** device_infos_が入るコンテナ */
-    static device_infos_t device_infos_;
 //    uint32_t control_change_buffer_[midi_ch_num][control_change_num];
     /** デバイスのhandle */
     HMIDIIN hmidiin_;
@@ -157,4 +134,5 @@ namespace sf {
     /** エクスクルーシブ用バッファ */
     uint8_t exclusive_data_buffer_[size_of_buffer_];
   };
+
 }

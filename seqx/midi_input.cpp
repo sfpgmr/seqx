@@ -8,36 +8,12 @@
 
 namespace sf {
   
-  midi_input::device_infos_t midi_input::device_infos_;
-
   const std::wstring midi_input_error::get_error_string(uint32_t id)
   {
     wchar_t buf[MAXCHAR] = {};
 
     ::midiInGetErrorTextW(id,buf,MAXCHAR);
     return std::wstring(buf);
-  }
-
-  /** デバイスを列挙して、情報をコンテナに収める */
-  void midi_input::enum_devices()
-  {
-    const uint32_t num_devs_ = midiInGetNumDevs();
-    if(num_devs_ > 0)
-    {
-      device_infos_.clear();
-      for( uint32_t dev_id_ = 0;dev_id_ < num_devs_;++dev_id_)
-      {
-        MIDIINCAPS2 caps2_;
-        uint32_t result = midiInGetDevCaps(dev_id_,reinterpret_cast<LPMIDIINCAPS>(&caps2_),sizeof(MIDIINCAPS2));
-        if(result != MMSYSERR_NOERROR)
-        {
-           throw midi_input_error(result);
-        } else {
-          midi_input::device_infos_.push_back(new midi_input::caps(caps2_,dev_id_));
-        }
-      }
-    }
-
   }
 
   /** コンストラクタ */
@@ -47,7 +23,7 @@ namespace sf {
     memset(&midi_buffer_info_,0,sizeof(midi_buffer_info_));
     midi_buffer_info_.lpData  = (LPSTR)exclusive_data_buffer_;
     midi_buffer_info_.dwBufferLength = size_of_buffer_;
-    open();
+//    open();
   }
 
   /** デストラクタ */
@@ -58,5 +34,4 @@ namespace sf {
     close();
   }
 
- 
  }

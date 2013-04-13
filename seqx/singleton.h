@@ -33,7 +33,7 @@ namespace sf {
         typedef PointerType<BaseClass> ptr;
         friend  BaseClass;
  
-        static ptr& instance()
+        static const ptr& instance()
         {
             boost::call_once(init,flag_);
             return instance_;
