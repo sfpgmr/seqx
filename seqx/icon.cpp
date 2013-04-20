@@ -216,7 +216,7 @@ namespace sf {
   //      );
 
   //      ID2D1DCRenderTargetPtr dcr;
-  //      throw_if_err<>()(factory_->CreateDCRenderTarget(&props,&dcr));
+  //      throw_if_err<>()(d2d_factory_->CreateDCRenderTarget(&props,&dcr));
   //      RECT rect = {0,0,w,h};
   //      // 互換DCへのバインド
   //      throw_if_err<>()(dcr->BindDC(cdc.get(),&rect));

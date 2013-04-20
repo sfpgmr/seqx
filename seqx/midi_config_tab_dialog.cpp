@@ -71,7 +71,7 @@ namespace sf
   midi_config_tab_dialog::~midi_config_tab_dialog()
   {
     discard_device();
-    safe_release(factory_);
+    safe_release(d2d_factory_);
     safe_release(write_factory_);
   };
 
@@ -128,17 +128,17 @@ namespace sf
   void midi_config_tab_dialog::create_device_independent_resources()
   {
     // Direct2DFactory の生成
-    if(!factory_){
+    if(!d2d_factory_){
 #if defined(DEBUG) || defined(_DEBUG)
       D2D1_FACTORY_OPTIONS options;
       options.debugLevel = D2D1_DEBUG_LEVEL_INFORMATION ;
       THROW_IFERR(D2D1CreateFactory(
         D2D1_FACTORY_TYPE_SINGLE_THREADED,
         options,
-        factory_.GetAddressOf()
+        d2d_factory_.GetAddressOf()
         ));
 #else
-      THROW_IFERR(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &factory_));
+      THROW_IFERR(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &d2d_factory_));
 #endif
 
     }
@@ -217,7 +217,7 @@ namespace sf
       const D2D1_RENDER_TARGET_PROPERTIES target_prop = 
         D2D1::RenderTargetProperties(D2D1_RENDER_TARGET_TYPE_DEFAULT,format);
 
-      THROW_IFERR(factory_->CreateHwndRenderTarget(
+      THROW_IFERR(d2d_factory_->CreateHwndRenderTarget(
         target_prop,
         D2D1::HwndRenderTargetProperties(waveform_hwnd, size,D2D1_PRESENT_OPTIONS_IMMEDIATELY),
         &render_target_
@@ -242,10 +242,10 @@ namespace sf
     //safe_release(v_shader_);
     // discard_swap_chain_dependent_resources();
     safe_release(render_target_);
-    /*   safe_release(swap_chain_);
+    /*   safe_release(dxgi_swap_chain_);
     safe_release(d3d_context_);
     safe_release(d3d_device_);
-    safe_release(adapter_);
+    safe_release(dxgi_adapter_);
     */ 
   }
 

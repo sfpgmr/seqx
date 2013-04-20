@@ -64,7 +64,7 @@ public:
 
   virtual ~basic_dbg_ostream()
     {
-      // flush(); // 不要らしい．http://www.tietew.jp/cppll/archive/607
+      flush(); // 不要らしい．http://www.tietew.jp/cppll/archive/607
       delete rdbuf();
     }
 };
@@ -72,13 +72,32 @@ public:
 typedef basic_dbg_streambuf<wchar_t>  wdbg_streambuf;
 typedef basic_dbg_ostream<wchar_t> wdstream;
 
+inline void debug_out(boost::wformat& f)
+{
+  OutputDebugStringW(f.str().c_str());
+};
+
+inline void debug_out(std::wstring& s)
+{
+  OutputDebugStringW(s.c_str());
+}
+
+inline void debug_out(wchar_t* s)
+{
+  OutputDebugStringW(s);
+}
+
+
 // これを定義しておくと， dout の宣言がいらなくなる．
 
-static wdstream wdout;
-#define DOUT(x) wdout << x 
 }
+extern sf::wdstream wdout;
+//#define wdout sf::wdout_instance::instance()->wdout
+#define DOUT(x) wdout << x 
+
 #else
 #define DOUT(x) 
+#define debug_out(x) 
 #define wdout //
 //  struct dummy_wdout {
 //    //template <typename R>

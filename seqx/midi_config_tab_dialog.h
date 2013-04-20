@@ -64,7 +64,7 @@ namespace sf
 
     config_changed_t config_changed_;
 
-    ID2D1FactoryPtr factory_;
+    ID2D1FactoryPtr d2d_factory_;
     ID2D1HwndRenderTargetPtr render_target_;
     IDWriteFactoryPtr write_factory_;
     IWICImagingFactoryPtr wic_imaging_factory_;

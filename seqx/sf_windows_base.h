@@ -34,6 +34,9 @@ _WRL_PTR_TYPEDEF(IDWriteFontFile);
 // Direct2D
 
 _WRL_PTR_TYPEDEF(ID2D1Factory);
+_WRL_PTR_TYPEDEF(ID2D1Factory1);
+_WRL_PTR_TYPEDEF(ID2D1Device);
+_WRL_PTR_TYPEDEF(ID2D1DeviceContext);
 _WRL_PTR_TYPEDEF(ID2D1HwndRenderTarget);
 _WRL_PTR_TYPEDEF(ID2D1BitmapRenderTarget);
 _WRL_PTR_TYPEDEF(ID2D1GdiInteropRenderTarget);
@@ -44,6 +47,7 @@ _WRL_PTR_TYPEDEF(ID2D1GradientStopCollection);
 _WRL_PTR_TYPEDEF(ID2D1SolidColorBrush);
 _WRL_PTR_TYPEDEF(ID2D1BitmapBrush);
 _WRL_PTR_TYPEDEF(ID2D1Bitmap);
+_WRL_PTR_TYPEDEF(ID2D1Bitmap1);
 
 // WIC
 
@@ -58,14 +62,21 @@ _WRL_PTR_TYPEDEF(ITaskbarList3);
 // DXGI 
 
 _WRL_PTR_TYPEDEF(IDXGISwapChain);
+_WRL_PTR_TYPEDEF(IDXGISwapChain1);
 _WRL_PTR_TYPEDEF(IDXGIFactory1);
+_WRL_PTR_TYPEDEF(IDXGIFactory2);
+_WRL_PTR_TYPEDEF(IDXGIAdapter);
 _WRL_PTR_TYPEDEF(IDXGIAdapter1);
+_WRL_PTR_TYPEDEF(IDXGIAdapter2);
+_WRL_PTR_TYPEDEF(IDXGIDevice);
 _WRL_PTR_TYPEDEF(IDXGIDevice1);
+_WRL_PTR_TYPEDEF(IDXGIDevice2);
 _WRL_PTR_TYPEDEF(IDXGIKeyedMutex);
 _WRL_PTR_TYPEDEF(IDXGIObject);
 _WRL_PTR_TYPEDEF(IDXGIDeviceSubObject);
-_WRL_PTR_TYPEDEF(IDXGISurface1);
+_WRL_PTR_TYPEDEF(IDXGISurface2);
 _WRL_PTR_TYPEDEF(IDXGIOutput);
+_WRL_PTR_TYPEDEF(IDXGIOutput1);
 //_WRL_PTR_TYPEDEF(IDXGI);
 //_WRL_PTR_TYPEDEF(IDXGI);
 
@@ -485,6 +496,7 @@ namespace sf{
       return proc_t::def_wnd_proc(hwnd,message,wParam,lParam);
     };
 
+    virtual result_t on_activate(int active,bool minimized);
     // デフォルトウィンドウメッセージハンドラ
     virtual result_t on_nccreate(CREATESTRUCT *p) ;//{ return std::is_same<proc_t,wndproc>::value?1:FALSE;}
     virtual result_t on_create(CREATESTRUCT *p); //{ return std::is_same<proc_t,wndproc>::value?0:FALSE;}
@@ -492,7 +504,7 @@ namespace sf{
     virtual result_t on_size(uint32_t flag,uint32_t width,uint32_t height);//{return std::is_same<proc_t,wndproc>::value?0:FALSE;    }
     //virtual LRESULT 
     virtual result_t on_paint();
-    virtual result_t on_display_change(uint32_t bpp,uint32_t h_resolution,uint32_t v_resolution) {         invalidate_rect();return std::is_same<proc_t,wndproc>::value?0:FALSE;}
+    virtual result_t on_display_change(uint32_t bpp,uint32_t h_resolution,uint32_t v_resolution);// {         invalidate_rect();return std::is_same<proc_t,wndproc>::value?0:FALSE;}
     virtual result_t on_erase_backgroud(HDC dc) {return std::is_same<proc_t,wndproc>::value?1:TRUE;}
     virtual result_t on_hscroll(uint32_t state,uint32_t position,HWND ctrl_hwnd) {return std::is_same<proc_t,wndproc>::value?0:FALSE;}
     virtual result_t on_vscroll(uint32_t state,uint32_t position,HWND ctrl_hwnd) {return std::is_same<proc_t,wndproc>::value?0:FALSE;}
@@ -519,7 +531,7 @@ namespace sf{
     }
 
     virtual result_t on_set_cursor() { return std::is_same<proc_t,wndproc>::value?0:FALSE; }
-    virtual result_t on_key_down(uint32_t vkey,uint32_t ext_key,uint32_t repeat) { return std::is_same<proc_t,wndproc>::value?0:FALSE; }
+    virtual result_t on_key_down(uint32_t vkey,uint32_t ext_key,uint32_t repeat);
     virtual result_t on_key_up(uint32_t vkey,uint32_t ext_key,uint32_t repeat) { return std::is_same<proc_t,wndproc>::value?0:FALSE; }
     virtual result_t on_app_command(uint32_t command,uint32_t device,uint32_t keystate) {return std::is_same<proc_t,wndproc>::value?0:FALSE;}
     virtual result_t on_command(uint32_t wparam, uint32_t lparam)  { return std::is_same<proc_t,wndproc>::value?0:FALSE; } 
@@ -533,6 +545,7 @@ namespace sf{
     virtual void render();
   protected:
     void get_dxgi_information();
+    void resize_resources();
 
     // Window生成後呼ばれる関数
     // WM_NCCREATEメッセージの時にthunkに切り替える
@@ -596,43 +609,51 @@ namespace sf{
     WINDOWPLACEMENT wp_;
     bool init_;
 
-    ID2D1FactoryPtr factory_;
-    ID2D1HwndRenderTargetPtr render_target_;
+    ID2D1Factory1Ptr d2d_factory_;
+    ID2D1Bitmap1Ptr d2d1_target_bitmap_;
+    //ID2D1HwndRenderTargetPtr render_target_;
+    ID2D1DevicePtr d2d_device_;
+    ID2D1DeviceContextPtr d2d_context_;
+
     IDWriteFactoryPtr write_factory_;
     IWICImagingFactoryPtr wic_imaging_factory_;
     IDWriteTextFormatPtr write_text_format_;
 
-    IDXGIFactory1Ptr dxgi_factory_;
-    IDXGIAdapter1Ptr adapter_;
-    IDXGIOutputPtr output_;
+    IDXGIFactory2Ptr dxgi_factory_;
+    IDXGIAdapter2Ptr dxgi_adapter_;
+    IDXGIOutput1Ptr dxgi_output_;
+    IDXGIDevice2Ptr dxgi_device_;
+    IDXGISurface2Ptr dxgi_back_buffer_;
+    DXGI_MODE_DESC1 actual_desc_;
+    IDXGISwapChain1Ptr dxgi_swap_chain_;
+    std::wstring dxgi_info_;
+
     ID3D11DevicePtr d3d_device_;
     ID3D11DeviceContextPtr d3d_context_;
-    ID3D11Texture2DPtr texture_;
-    ID3D11RenderTargetViewPtr view_;
-    ID3D11Texture2DPtr depth_texture_;
-    ID3D11DepthStencilViewPtr depth_view_;
-    ID3D11VertexShaderPtr v_shader_;
-    ID3D11InputLayoutPtr input_layout_;
-    ID3D11PixelShaderPtr p_shader_;
-    ID3D11BufferPtr v_buffer_;
-    ID3D11BufferPtr i_buffer_;
-    ID3D11BufferPtr cb_never_changes_;
-    ID3D11BufferPtr cb_change_on_resize_;
-    ID3D11BufferPtr cb_changes_every_frame_;
-    ID3D11ShaderResourceViewPtr shader_res_view_;
-    ID3D11SamplerStatePtr sampler_state_;
     ID3D11Texture2DPtr back_buffer_;
-    
-    ID3D11SamplerStatePtr cube_sampler_state_;
-    ID3D11Texture2DPtr cube_texture_;
-    ID3D11Texture2DPtr cube_depth_texture_;
-    ID3D11ShaderResourceViewPtr cube_shader_res_view_;
-    ID3D11RenderTargetViewPtr cube_view_;
-    ID3D11DepthStencilViewPtr cube_depth_view_;
 
-    DXGI_MODE_DESC actual_desc_;
-    IDXGISwapChainPtr swap_chain_;
-    std::wstring dxgi_info_;
+    //ID3D11RenderTargetViewPtr view_;
+    //ID3D11Texture2DPtr depth_texture_;
+    //ID3D11DepthStencilViewPtr depth_view_;
+    //ID3D11VertexShaderPtr v_shader_;
+    //ID3D11InputLayoutPtr input_layout_;
+    //ID3D11PixelShaderPtr p_shader_;
+    //ID3D11BufferPtr v_buffer_;
+    //ID3D11BufferPtr i_buffer_;
+    //ID3D11BufferPtr cb_never_changes_;
+    //ID3D11BufferPtr cb_change_on_resize_;
+    //ID3D11BufferPtr cb_changes_every_frame_;
+    //ID3D11ShaderResourceViewPtr shader_res_view_;
+    //ID3D11SamplerStatePtr sampler_state_;
+    //ID3D11Texture2DPtr back_buffer_;
+    
+    //ID3D11SamplerStatePtr cube_sampler_state_;
+    //ID3D11Texture2DPtr cube_texture_;
+    //ID3D11Texture2DPtr cube_depth_texture_;
+    //ID3D11ShaderResourceViewPtr cube_shader_res_view_;
+    //ID3D11RenderTargetViewPtr cube_view_;
+    //ID3D11DepthStencilViewPtr cube_depth_view_;
+
 
 	
 	
@@ -644,6 +665,7 @@ namespace sf{
     DirectX::XMFLOAT4                            mesh_color_;
     float client_width_,client_height_;
 
+    bool activate_;
     timer timer_;
 
     // __declspec ( thread ) static std::queue<proc_t::proc_type> ptrs_ ;// thread local storage

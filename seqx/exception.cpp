@@ -89,7 +89,7 @@ win32_error_exception::win32_error_exception(uint32_t hr)
 			error_ = (boost::wformat(L"0x%x 不明なCOMエラー") % hr).str();
 		}
 #ifdef _DEBUG
-  wdout << L"#### Exception Occured ####" << error_ << std::endl; 
+  debug_out(boost::wformat(L"#### Exception Occured #### %s \n") %  error_ ); 
 #endif
 	}
 
@@ -102,7 +102,7 @@ win32_error_exception::win32_error_exception()
 	DWORD rv =  FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,0,hresult_,0,(LPWSTR)&mem,0,0);
 	error_ = mem.get();
 #ifdef _DEBUG
-  wdout << L"#### Exception Occured ####" << error_ << std::endl; 
+  debug_out( boost::wformat( L"#### Exception Occured #### %s \n") % error_);
 #endif
 
   //Logger::outputDebugPrintf(L"Win32 Error %x %s",hresult_,mem.Get() );
@@ -116,7 +116,7 @@ std::wstring win32_error_exception::get_last_error_str(uint32_t err)
 	DWORD rv =  FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,0,err,0,(LPWSTR)&mem,0,0);
 	err_str = mem.get();
 #ifdef _DEBUG
-  wdout << L"#### Exception Occured ####" << err_str << std::endl; 
+  debug_out(boost::wformat(L"#### Exception Occured #### %s \n" )% err_str); 
 #endif
   return err_str;
 }

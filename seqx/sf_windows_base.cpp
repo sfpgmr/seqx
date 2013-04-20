@@ -31,8 +31,8 @@
 #pragma comment( lib, "DWMApi.lib" )
 #pragma comment( lib,"msimg32.lib")
 
-#define THROW_IFERR(hres) \
-  if (FAILED(hres)) { throw sf::win32_error_exception(hres); }
+//#define THROW_IF_ERR(hres) \
+//  if (FAILED(hres)) { throw sf::win32_error_exception(hres); }
 
 #ifndef HINST_THISCOMPONENT
 EXTERN_C IMAGE_DOS_HEADER __ImageBase;
@@ -61,7 +61,7 @@ namespace sf
     //DWMNCRENDERINGPOLICY policy = DWMNCRP_ENABLED;
     //DwmSetWindowAttribute(hwnd,DWMWA_NCRENDERING_POLICY,&policy,sizeof(policy));
 
-    
+
     //if (SUCCEEDED(hr))
     //{
     //  //do more things
@@ -260,6 +260,8 @@ namespace sf
         dpi_.scale_x(
         GET_X_LPARAM(lParam)),dpi_.scale_y(GET_Y_LPARAM(lParam)))
         ;
+    case WM_ACTIVATE:
+        return on_activate(LOWORD(wParam),HIWORD(wParam) != 0);
     case WM_MOUSEMOVE:
       {
         return on_mouse_move(wParam,
@@ -293,8 +295,8 @@ namespace sf
       return on_notify(reinterpret_cast<NMHDR*>(lParam));
     case WM_DWMCOMPOSITIONCHANGED:
       return on_dwm_composition_changed();
-    //case WM_DWMCOLORIZATIONCOLORCHANGED:
-    //  return on_dwm_colorlizationcolor_changed
+      //case WM_DWMCOLORIZATIONCOLORCHANGED:
+      //  return on_dwm_colorlizationcolor_changed
     }
 
     // 他のWindowメッセージを派生クラス側でフックできるようにする
@@ -333,16 +335,16 @@ namespace sf
     // Because the CreateWindow function takes its size in pixels, we
     // obtain the system DPI and use it to scale the window size.
     //FLOAT dpiX, dpiY;
-    //factory_->GetDesktopDpi(&dpiX, &dpiY);
+    //d2d_factory_->GetDesktopDpi(&dpiX, &dpiY);
 
 
     // Windowを作成する
     // Windowを作成する
     CreateWindowEx(
-       WS_EX_APPWINDOW/* | WS_EX_LAYERED */,
+      WS_EX_TOOLWINDOW /* | WS_EX_LAYERED */,
       name_.c_str(),
       title_.c_str(),
-      WS_OVERLAPPEDWINDOW /*| WS_POPUP*/,
+      /* WS_OVERLAPPEDWINDOW*/  WS_POPUP,
       CW_USEDEFAULT,
       CW_USEDEFAULT,
       static_cast<uint32_t>(width_),
@@ -353,6 +355,16 @@ namespace sf
       this
       );
     ::GetWindowPlacement(hwnd_,&wp_);
+  }
+
+  template <typename ProcType>
+  typename base_win32_window<ProcType>::result_t base_win32_window<ProcType>::on_key_down(uint32_t vkey,uint32_t ext_key,uint32_t repeat) 
+  {
+    if(vkey == VK_ESCAPE)
+    {
+      PostMessage( hwnd_, WM_CLOSE, 0, 0 );
+    }
+    return std::is_same<proc_t,wndproc>::value?0:FALSE; 
   }
 
 
@@ -408,36 +420,39 @@ namespace sf
   template <typename ProcType> 
   void  base_win32_window<ProcType>::create_device_independent_resources()
   {
-
     // DXGI Factory の 生成
 
-    if(!dxgi_factory_)
-    {
-      THROW_IFERR(CreateDXGIFactory1(__uuidof(IDXGIFactory1),reinterpret_cast<void**>(dxgi_factory_.GetAddressOf())));
-      get_dxgi_information();
-    }
+    //if(!dxgi_factory_)
+    //{
+    //  IDXGIFactory1Ptr factory;
+    //  THROW_IF_ERR(CreateDXGIFactory1(__uuidof(IDXGIFactory1),reinterpret_cast<void**>(factory.GetAddressOf())));
+    //  factory.As(&dxgi_factory_);
 
-        if(!factory_){
+    //  get_dxgi_information();
+    //}
+
+    if(!d2d_factory_){
 #if defined(DEBUG) || defined(_DEBUG)
-        D2D1_FACTORY_OPTIONS options;
-        options.debugLevel = D2D1_DEBUG_LEVEL_INFORMATION ;
-        THROW_IFERR(D2D1CreateFactory(
-            D2D1_FACTORY_TYPE_SINGLE_THREADED,
-            options,
-            factory_.GetAddressOf()
-            ));
+      D2D1_FACTORY_OPTIONS options = {};
+      options.debugLevel = D2D1_DEBUG_LEVEL_INFORMATION ;
+      THROW_IF_ERR(D2D1CreateFactory(
+        D2D1_FACTORY_TYPE_SINGLE_THREADED,
+        __uuidof(ID2D1Factory1),
+        &options,
+        &d2d_factory_
+        ));
 #else
-		  EXCEPTION_ON_ERROR(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &factory_));
+      EXCEPTION_ON_ERROR(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &d2d_factory_));
 #endif
 
     }
 
     if(!write_factory_){
-		  THROW_IFERR(::DWriteCreateFactory(
-			  DWRITE_FACTORY_TYPE_SHARED,
-			  __uuidof(IDWriteFactory),
-			  reinterpret_cast<IUnknown**>(write_factory_.GetAddressOf())
-		  ));
+      THROW_IF_ERR(::DWriteCreateFactory(
+        DWRITE_FACTORY_TYPE_SHARED,
+        __uuidof(IDWriteFactory),
+        reinterpret_cast<IUnknown**>(write_factory_.GetAddressOf())
+        ));
     }
 
 
@@ -446,31 +461,25 @@ namespace sf
   template <typename ProcType> 
   void  base_win32_window<ProcType>::create_device(){
     calc_client_size();
-    HRESULT hr = S_OK;
     init_ = false;
-    RECT rc;
-    GetWindowRect(hwnd_,&rc);
 
-    // アダプタデバイス情報の取得
-    //LARGE_INTEGER version;
-    THROW_IFERR(dxgi_factory_->EnumAdapters1(0,&adapter_));
-    //THROW_IFERR(adapter_->CheckInterfaceSupport( __uuidof(ID3D10Device),&version));
-
-
-    // D3DDeviceの作成
-
+    // Feature Level配列のセットアップ
     std::vector<D3D_FEATURE_LEVEL> feature_levels = 
       boost::assign::list_of<D3D_FEATURE_LEVEL>
-      (D3D_FEATURE_LEVEL_11_0 )        // DirectX11対応GPU
-      (D3D_FEATURE_LEVEL_10_1)        // DirectX10.1対応GPU
-      (D3D_FEATURE_LEVEL_10_0 );       // DirectX10対応GPU
+      (D3D_FEATURE_LEVEL_11_1 )        // DirectX11.1対応GPU
+      (D3D_FEATURE_LEVEL_11_0);        // DirectX11.0対応GPU
+    //        (D3D_FEATURE_LEVEL_10_0 );       // DirectX10対応GPU
 
-    D3D_FEATURE_LEVEL level;
-    THROW_IFERR(::D3D11CreateDevice(
-      adapter_.Get(),
-      D3D_DRIVER_TYPE_UNKNOWN ,
+    // OSが設定したFeature Levelを受け取る変数
+    D3D_FEATURE_LEVEL level ;
+
+
+    // Direct3D デバイス&コンテキスト作成
+    THROW_IF_ERR(::D3D11CreateDevice(
+      nullptr,
+      D3D_DRIVER_TYPE_HARDWARE ,
       NULL,
-      D3D11_CREATE_DEVICE_DEBUG,
+      D3D11_CREATE_DEVICE_DEBUG | D3D11_CREATE_DEVICE_BGRA_SUPPORT,
       &feature_levels[0],
       feature_levels.size(),
       D3D11_SDK_VERSION,
@@ -478,474 +487,604 @@ namespace sf
       &level,
       &d3d_context_));
 
-    THROW_IFERR(adapter_->EnumOutputs(0,&output_));
+    // DXGIデバイスの取得
+    THROW_IF_ERR(d3d_device_.As(&dxgi_device_));
+
+    // DXGIアダプタの取得
+    {
+      IDXGIAdapterPtr adp;
+      THROW_IF_ERR(dxgi_device_->GetAdapter(&adp));
+      THROW_IF_ERR(adp.As(&dxgi_adapter_));
+    }
+
+    // DXGI Outputの取得
+    {
+      IDXGIOutputPtr out;
+      THROW_IF_ERR(dxgi_adapter_->EnumOutputs(0,&out));
+      THROW_IF_ERR(out.As(&dxgi_output_));
+    }
+
+    // DXGI ファクトリーの取得
+    THROW_IF_ERR(dxgi_adapter_->GetParent(IID_PPV_ARGS(&dxgi_factory_)));
 
     // MSAA
-    DXGI_SAMPLE_DESC msaa;
-    for(int i = 0; i <= D3D11_MAX_MULTISAMPLE_SAMPLE_COUNT; i++){
-      UINT q;
-      if SUCCEEDED(d3d_device_->CheckMultisampleQualityLevels(DXGI_FORMAT_D24_UNORM_S8_UINT, i, &q)){
-        if(1 < q){
-          msaa.Count = i;
-          msaa.Quality = q - 1;
-          break;
-        }
-      }
-    }
-
-    // 表示モード
-    DXGI_MODE_DESC desired_desc = {};// , actual_desc_ = {};
-    // 各色8ビットで符号化なし正規化数
-    desired_desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
-    desired_desc.Height = height_;// 高さ
-    desired_desc.Width = width_;// 幅
-    desired_desc.Scaling = DXGI_MODE_SCALING_CENTERED;// スケーリングなし
-    // リフレッシュレートを60Hzを要求する
-
-    desired_desc.RefreshRate.Numerator = 60000;
-    desired_desc.RefreshRate.Denominator = 1000;
-    // 近いモードを検索
-    THROW_IF_ERR(output_->FindClosestMatchingMode(&desired_desc,&actual_desc_,d3d_device_.Get()));
-
-    //// スワップチェーンの作成
-    //{
-    //  DXGI_SWAP_CHAIN_DESC desc = {};
-
-    //  desc.BufferDesc = actual_desc_;
-    //  desc.SampleDesc.Count	= 1;
-    //  desc.BufferUsage			= DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    //  desc.BufferCount			= 1;
-    //  //      desc.SampleDesc = msaa;
-    //  desc.OutputWindow		= hwnd_;
-    //  //desc.SwapEffect			= DXGI_SWAP_EFFECT_DISCARD;
-    //  desc.Windowed			= TRUE;
-    //  desc.Flags = DXGI_SWAP_CHAIN_FLAG_GDI_COMPATIBLE;
-
-    //  THROW_IFERR(dxgi_factory_->CreateSwapChain(d3d_device_,&desc,&swap_chain_));
-
+    //DXGI_SAMPLE_DESC msaa;
+    //for(int i = 0; i <= D3D11_MAX_MULTISAMPLE_SAMPLE_COUNT; i++){
+    //  UINT q;
+    //  if SUCCEEDED(d3d_device_->CheckMultisampleQualityLevels(DXGI_FORMAT_D24_UNORM_S8_UINT, i, &q)){
+    //    if(1 < q){
+    //      msaa.Count = i;
+    //      msaa.Quality = q - 1;
+    //      break;
+    //    }
+    //  }
     //}
 
-    // バックバッファの作成
-  
-    D3D11_TEXTURE2D_DESC desc = {0};
-    desc.Width = actual_desc_.Width;
-    desc.Height = actual_desc_.Height;
-    desc.Format = actual_desc_.Format;
-    desc.MipLevels = 1;
+    // スワップチェーンの作成
+    DXGI_SWAP_CHAIN_DESC1 desc = {};
+
+    desc.Width =  width_;
+    desc.Height = height_;
+    desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+    desc.Scaling = DXGI_SCALING_NONE;
+    desc.Stereo = 0;
+    desc.AlphaMode =  DXGI_ALPHA_MODE_UNSPECIFIED;
+    desc.BufferUsage			= DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    desc.BufferCount			= 2;
+    //desc.SampleDesc = msaa;
+    desc.SwapEffect			= DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
+    desc.Flags = DXGI_SWAP_CHAIN_FLAG_DISPLAY_ONLY;//DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
     desc.SampleDesc.Count = 1;
-    desc.SampleDesc.Quality = 0;
-    desc.ArraySize = 1;
-    desc.Usage = D3D11_USAGE_DEFAULT;
-    desc.BindFlags = D3D11_BIND_RENDER_TARGET;
-    desc.MiscFlags = D3D11_RESOURCE_MISC_GDI_COMPATIBLE;
-    THROW_IF_ERR(d3d_device_->CreateTexture2D(&desc,NULL,&back_buffer_));
 
-    // スワップチェーン依存リソースの作成
-    
-    create_swapchain_dependent_resources();
+    DXGI_SWAP_CHAIN_FULLSCREEN_DESC desc_fullScreen;
+    desc_fullScreen.RefreshRate.Numerator = 60;
+    desc_fullScreen.RefreshRate.Denominator = 1;
+    desc_fullScreen.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
+    desc_fullScreen.Windowed = FALSE;
+    desc_fullScreen.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
 
-    {
-      // バーテックスシェーダのコンパイル
-      ID3DBlobPtr vsblob,vserrblob;
-      DWORD compile_flag = D3DCOMPILE_ENABLE_STRICTNESS;
-#if defined( DEBUG ) || defined( _DEBUG )
-      compile_flag |= D3DCOMPILE_DEBUG;
-#endif
+    THROW_IF_ERR(dxgi_factory_->CreateSwapChainForHwnd(d3d_device_.Get(),hwnd_,&desc,&desc_fullScreen,dxgi_output_.Get(),&dxgi_swap_chain_));
+    THROW_IF_ERR(dxgi_device_->SetMaximumFrameLatency(1));
+    THROW_IF_ERR(dxgi_swap_chain_->GetBuffer(0,IID_PPV_ARGS(&back_buffer_)));
 
-	  HRESULT hr = D3DCompileFromFile
-		  (
-			L"dxgi_test.fx", NULL,D3D_COMPILE_STANDARD_FILE_INCLUDE , "VS", "vs_5_0", 
-        compile_flag, 0, &vsblob, &vserrblob );
-      if( FAILED( hr ) )
-      {
-        if( vserrblob != NULL )
-          OutputDebugStringA( (char*)vserrblob->GetBufferPointer() );
-        if( vserrblob ) vserrblob.Reset();
-        throw sf::win32_error_exception(hr);
-      }
+    // Direct2Dデバイスの作成
+    THROW_IF_ERR(d2d_factory_->CreateDevice(dxgi_device_.Get(),&d2d_device_));
 
-      // バーテックスシェーダの生成
-      THROW_IFERR(d3d_device_->CreateVertexShader( vsblob->GetBufferPointer(), vsblob->GetBufferSize(), NULL, &v_shader_ ));
+    // Direct2Dデバイスコンテキストの作成
+    THROW_IF_ERR(d2d_device_->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE,&d2d_context_));
 
-      // 入力頂点レイアウトの定義
-      D3D11_INPUT_ELEMENT_DESC
-        layout[] = {
-          { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-          { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-          { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 }};
-          ;
+    // DXGIサーフェースからDirect2D描画用ビットマップを作成
+    THROW_IF_ERR(dxgi_swap_chain_->GetBuffer(0,IID_PPV_ARGS(&dxgi_back_buffer_)));
+    D2D1_BITMAP_PROPERTIES1 bitmap_properties = 
+      D2D1::BitmapProperties1(
+      D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
+      D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_IGNORE),
+      dpi_.dpix(),
+      dpi_.dpiy()
+      );
 
-          // 入力頂点レイアウトの生成
-          THROW_IFERR(d3d_device_->CreateInputLayout( layout, ARRAYSIZE(layout), vsblob->GetBufferPointer(),
-            vsblob->GetBufferSize(), &input_layout_ ));
-          vsblob.Reset();
-    }
+    THROW_IF_ERR(d2d_context_->CreateBitmapFromDxgiSurface(
+      dxgi_back_buffer_.Get(),&bitmap_properties,&d2d1_target_bitmap_));
 
-    // 入力レイアウトの設定
-    d3d_context_->IASetInputLayout( input_layout_.Get() );
+    // Direct2D描画ターゲットの設定
+    d2d_context_->SetTarget(d2d1_target_bitmap_.Get());
 
-    // ピクセル・シェーダーのコンパイル
-    {
-      ID3DBlobPtr psblob,pserror;
-      DWORD compile_flag = D3DCOMPILE_ENABLE_STRICTNESS;
-#if defined( DEBUG ) || defined( _DEBUG )
-      compile_flag |= D3DCOMPILE_DEBUG;
-#endif
-      HRESULT hr = D3DCompileFromFile( L"dxgi_test.fx", NULL, D3D_COMPILE_STANDARD_FILE_INCLUDE, "PS", "ps_5_0", 
-        compile_flag, 0,  &psblob, &pserror);
-      if( FAILED( hr ) )
-      {
-        if( pserror != NULL )
-          OutputDebugStringA( (char*)pserror->GetBufferPointer() );
-        safe_release(pserror);
-        throw sf::win32_error_exception(hr);
-      }
+    // ALT+ENTERを禁止（フルスクリーンのみ）
+   THROW_IF_ERR(dxgi_factory_->MakeWindowAssociation( hwnd_, DXGI_MWA_NO_ALT_ENTER ));
+   //get_dxgi_information();
 
-      // ピクセルシェーダの作成
-      THROW_IFERR(d3d_device_->CreatePixelShader( psblob->GetBufferPointer(), psblob->GetBufferSize(), NULL, &p_shader_ ));
+   init_ = true;// 初期化完了
 
-      psblob.Reset();
-    }
-
-    // バーテックスバッファの作成
-    // Create vertex buffer
-    simple_vertex vertices[] =
-    {
-      { XMFLOAT3( 0.0f, 0.0f,0.0f ),XMFLOAT3( 0.0f, 0.0f, -1.0f ) , XMFLOAT2( 0.0f, 0.0f ) },
-      { XMFLOAT3( 640.0f, 0.0f, 0.0f ),XMFLOAT3( 0.0f, 0.0f, -1.0f ), XMFLOAT2( 1.0f, 0.0f ) },
-      { XMFLOAT3( 0.0f, 480.0f, 0.0f ),XMFLOAT3( 0.0f, 0.0f, -1.0f ) , XMFLOAT2( 0.0f, 1.0f ) },
-      { XMFLOAT3( 640.0f, 480.0f, 0.0f ),XMFLOAT3( 0.0f, 0.0f, -1.0f ), XMFLOAT2( 1.0f, 1.0f ) }
-
-      //{ XMFLOAT3( -1.0f, -1.0f, 2.0f ),XMFLOAT3( 0.0f, 0.0f, -1.0f ) , XMFLOAT2( 1.0f, 1.0f ) },
-      //{ XMFLOAT3( 1.0f, -1.0f, 2.0f ),XMFLOAT3( 0.0f, 0.0f, -1.0f ), XMFLOAT2( 0.0f, 1.0f ) },
-      //{ XMFLOAT3( -1.0f, 1.0f, 2.0f ),XMFLOAT3( 0.0f, 0.0f, -1.0f ) , XMFLOAT2( 1.0f, 0.0f ) },
-      //{ XMFLOAT3( 1.0f, 1.0f, 2.0f ),XMFLOAT3( 0.0f, 0.0f, -1.0f ), XMFLOAT2( 0.0f, 0.0f ) }
-      // ---------------------
-      //{ XMFLOAT3( -1.0f, 1.0f, -1.0f ), XMFLOAT3( 0.0f, 1.0f, 0.0f ),XMFLOAT2( 0.0f, 0.0f ) },
-      //{ XMFLOAT3( 1.0f, 1.0f, -1.0f ),XMFLOAT3( 0.0f, 1.0f, 0.0f ), XMFLOAT2( 1.0f, 0.0f ) },
-      //{ XMFLOAT3( 1.0f, 1.0f, 1.0f ),XMFLOAT3( 0.0f, 1.0f, 0.0f ), XMFLOAT2( 1.0f, 1.0f ) },
-      //{ XMFLOAT3( -1.0f, 1.0f, 1.0f ), XMFLOAT3( 0.0f, 1.0f, 0.0f ) ,XMFLOAT2( 0.0f, 1.0f ) },
-
-      //{ XMFLOAT3( -1.0f, -1.0f, -1.0f ),XMFLOAT3( 0.0f, -1.0f, 0.0f ), XMFLOAT2( 0.0f, 0.0f ) },
-      //{ XMFLOAT3( 1.0f, -1.0f, -1.0f ),  XMFLOAT3( 0.0f, -1.0f, 0.0f ) ,XMFLOAT2( 1.0f, 0.0f ) },
-      //{ XMFLOAT3( 1.0f, -1.0f, 1.0f ), XMFLOAT3( 0.0f, -1.0f, 0.0f ) , XMFLOAT2( 1.0f, 1.0f ) },
-      //{ XMFLOAT3( -1.0f, -1.0f, 1.0f ), XMFLOAT3( 0.0f, -1.0f, 0.0f ),XMFLOAT2( 0.0f, 1.0f ) },
-
-      //{ XMFLOAT3( -1.0f, -1.0f, 1.0f ),XMFLOAT3( -1.0f, 0.0f, 0.0f ) , XMFLOAT2( 0.0f, 0.0f ) },
-      //{ XMFLOAT3( -1.0f, -1.0f, -1.0f ),XMFLOAT3( -1.0f, 0.0f, 0.0f ), XMFLOAT2( 1.0f, 0.0f ) },
-      //{ XMFLOAT3( -1.0f, 1.0f, -1.0f ), XMFLOAT3( -1.0f, 0.0f, 0.0f ),XMFLOAT2( 1.0f, 1.0f ) },
-      //{ XMFLOAT3( -1.0f, 1.0f, 1.0f ),XMFLOAT3( -1.0f, 0.0f, 0.0f ), XMFLOAT2( 0.0f, 1.0f ) },
-
-      //{ XMFLOAT3( 1.0f, -1.0f, 1.0f ),XMFLOAT3( 1.0f, 0.0f, 0.0f ), XMFLOAT2( 0.0f, 0.0f ) },
-      //{ XMFLOAT3( 1.0f, -1.0f, -1.0f ),XMFLOAT3( 1.0f, 0.0f, 0.0f ), XMFLOAT2( 1.0f, 0.0f ) },
-      //{ XMFLOAT3( 1.0f, 1.0f, -1.0f ),XMFLOAT3( 1.0f, 0.0f, 0.0f ), XMFLOAT2( 1.0f, 1.0f ) },
-      //{ XMFLOAT3( 1.0f, 1.0f, 1.0f ),XMFLOAT3( 1.0f, 0.0f, 0.0f ), XMFLOAT2( 0.0f, 1.0f ) },
-
-      //{ XMFLOAT3( -1.0f, -1.0f, -1.0f ),XMFLOAT3( 0.0f, 0.0f, -1.0f ) , XMFLOAT2( 0.0f, 0.0f ) },
-      //{ XMFLOAT3( 1.0f, -1.0f, -1.0f ),XMFLOAT3( 0.0f, 0.0f, -1.0f ), XMFLOAT2( 1.0f, 0.0f ) },
-      //{ XMFLOAT3( 1.0f, 1.0f, -1.0f ),XMFLOAT3( 0.0f, 0.0f, -1.0f ), XMFLOAT2( 1.0f, 1.0f ) },
-      //{ XMFLOAT3( -1.0f, 1.0f, -1.0f ),XMFLOAT3( 0.0f, 0.0f, -1.0f ) , XMFLOAT2( 0.0f, 1.0f ) },
-
-      //{ XMFLOAT3( -1.0f, -1.0f, 1.0f ), XMFLOAT3( 0.0f, 0.0f, 1.0f ) , XMFLOAT2( 0.0f, 0.0f ) },
-      //{ XMFLOAT3( 1.0f, -1.0f, 1.0f ), XMFLOAT3( 0.0f, 0.0f, 1.0f ) , XMFLOAT2( 1.0f, 0.0f ) },
-      //{ XMFLOAT3( 1.0f, 1.0f, 1.0f ),XMFLOAT3( 0.0f, 0.0f, 1.0f ), XMFLOAT2( 1.0f, 1.0f ) },
-      //{ XMFLOAT3( -1.0f, 1.0f, 1.0f ), XMFLOAT3( 0.0f, 0.0f, 1.0f ),XMFLOAT2( 0.0f, 1.0f ) }
-    };
-    //std::vector<simple_vertex> vertices = boost::assign::list_of<simple_vertex>
-    //
-    //    ( XMFLOAT3( -1.0f, 1.0f, -1.0f ), XMFLOAT2( 0.0f, 0.0f ) )
-    //    ( XMFLOAT3( 1.0f, 1.0f, -1.0f ), XMFLOAT2( 1.0f, 0.0f ) )
-    //    ( XMFLOAT3( 1.0f, 1.0f, 1.0f ), XMFLOAT2( 1.0f, 1.0f ) )
-    //    ( XMFLOAT3( -1.0f, 1.0f, 1.0f ), XMFLOAT2( 0.0f, 1.0f ) )
-
-    //    ( XMFLOAT3( -1.0f, -1.0f, -1.0f ), XMFLOAT2( 0.0f, 0.0f ) )
-    //    ( XMFLOAT3( 1.0f, -1.0f, -1.0f ), XMFLOAT2( 1.0f, 0.0f ) )
-    //    ( XMFLOAT3( 1.0f, -1.0f, 1.0f ), XMFLOAT2( 1.0f, 1.0f ) )
-    //    ( XMFLOAT3( -1.0f, -1.0f, 1.0f ), XMFLOAT2( 0.0f, 1.0f ) )
-
-    //    ( XMFLOAT3( -1.0f, -1.0f, 1.0f ), XMFLOAT2( 0.0f, 0.0f ) )
-    //    ( XMFLOAT3( -1.0f, -1.0f, -1.0f ), XMFLOAT2( 1.0f, 0.0f ) )
-    //    ( XMFLOAT3( -1.0f, 1.0f, -1.0f ), XMFLOAT2( 1.0f, 1.0f ) )
-    //    ( XMFLOAT3( -1.0f, 1.0f, 1.0f ), XMFLOAT2( 0.0f, 1.0f ) )
-
-    //    ( XMFLOAT3( 1.0f, -1.0f, 1.0f ), XMFLOAT2( 0.0f, 0.0f ) )
-    //    ( XMFLOAT3( 1.0f, -1.0f, -1.0f ), XMFLOAT2( 1.0f, 0.0f ) )
-    //    ( XMFLOAT3( 1.0f, 1.0f, -1.0f ), XMFLOAT2( 1.0f, 1.0f ) )
-    //    ( XMFLOAT3( 1.0f, 1.0f, 1.0f ), XMFLOAT2( 0.0f, 1.0f ) )
-
-    //    ( XMFLOAT3( -1.0f, -1.0f, -1.0f ), XMFLOAT2( 0.0f, 0.0f ) )
-    //    ( XMFLOAT3( 1.0f, -1.0f, -1.0f ), XMFLOAT2( 1.0f, 0.0f ) )
-    //    ( XMFLOAT3( 1.0f, 1.0f, -1.0f ), XMFLOAT2( 1.0f, 1.0f ) )
-    //    ( XMFLOAT3( -1.0f, 1.0f, -1.0f ), XMFLOAT2( 0.0f, 1.0f ) )
-
-    //    ( XMFLOAT3( -1.0f, -1.0f, 1.0f ), XMFLOAT2( 0.0f, 0.0f ) )
-    //    ( XMFLOAT3( 1.0f, -1.0f, 1.0f ), XMFLOAT2( 1.0f, 0.0f ) )
-    //    ( XMFLOAT3( 1.0f, 1.0f, 1.0f ), XMFLOAT2( 1.0f, 1.0f ) )
-    //    ( XMFLOAT3( -1.0f, 1.0f, 1.0f ), XMFLOAT2( 0.0f, 1.0f ) );
-
-    D3D11_BUFFER_DESC bd = {};
-    bd.Usage = D3D11_USAGE_DEFAULT;
-    bd.ByteWidth = sizeof( simple_vertex ) * 4;
-    bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-    bd.CPUAccessFlags = 0;
-
-    D3D11_SUBRESOURCE_DATA init_data = {};
-    init_data.pSysMem = vertices;
-    THROW_IFERR(d3d_device_->CreateBuffer( &bd, &init_data, &v_buffer_ ));
-
-    // 頂点バッファのセット
-    uint32_t stride = sizeof( simple_vertex );
-    uint32_t offset = 0;
-    d3d_context_->IASetVertexBuffers( 0, 1, v_buffer_.GetAddressOf(), &stride, &offset );
-
-    // インデックスバッファの生成
-    WORD indices[] =
-    {
-      0,1,2,
-      2,3,1
-      //3,1,0,
-      //2,1,3,
-      //6,4,5,
-      //7,4,6,
-      //11,9,8,
-      //10,9,11,
-      //14,12,13,
-      //15,12,14,
-      //19,17,16,
-      //18,17,19,
-      //22,20,21,
-      //23,20,22
-    };
-
-    bd.Usage = D3D11_USAGE_DEFAULT;
-    bd.ByteWidth = sizeof( WORD ) * 6;
-    bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
-    bd.CPUAccessFlags = 0;
-    init_data.pSysMem = indices;
-    THROW_IFERR(d3d_device_->CreateBuffer( &bd, &init_data, &i_buffer_ ));
-
-    // インデックスバッファのセット
-    d3d_context_->IASetIndexBuffer( i_buffer_.Get(), DXGI_FORMAT_R16_UINT, 0 );
-
-    // プリミティブの形態を指定する
-    d3d_context_->IASetPrimitiveTopology( D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP );
-
-    // 定数バッファを生成する。
-    bd.Usage = D3D11_USAGE_DEFAULT;
-    bd.ByteWidth = sizeof(cb_never_changes);
-    bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-    bd.CPUAccessFlags = 0;
-    THROW_IFERR(d3d_device_->CreateBuffer( &bd, NULL, &cb_never_changes_ ));
-
-    bd.ByteWidth = sizeof(cb_change_on_resize);
-    THROW_IFERR(d3d_device_->CreateBuffer( &bd, NULL, &cb_change_on_resize_ ));
-
-    bd.ByteWidth = sizeof(cb_changes_every_frame);
-    THROW_IFERR(d3d_device_->CreateBuffer( &bd, NULL, &cb_changes_every_frame_ ));
-
-    // テクスチャのロード
-	ID3D11ResourcePtr ptr;
-    THROW_IFERR(CreateDDSTextureFromFile( d3d_device_.Get(), L"SF.dds", &ptr, &shader_res_view_, NULL ));
-//    THROW_IFERR(CreateDDSTextureFromFile( d3d_device_, L"SF.dds", NULL, NULL, &shader_res_view_, NULL ));
-
-    // サンプルステートの生成
-    D3D11_SAMPLER_DESC sdesc = {};
-    sdesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-    sdesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-    sdesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-    sdesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-    sdesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-    sdesc.MinLOD = 0;
-    sdesc.MaxLOD = D3D11_FLOAT32_MAX;
-    THROW_IFERR(d3d_device_->CreateSamplerState( &sdesc, &sampler_state_ ));
-
-    // ワールド座標変換行列のセットアップ
-    mat_world_ = XMMatrixIdentity();
-
-    //g_vMeshColor( 0.7f, 0.7f, 0.7f, 1.0f );
-    // 
-    init_view_matrix();
-
-
-
-    // 動的テクスチャの生成
-    {
-      //D3D11_TEXTURE2D_DESC desc = {0};
-      //desc.Width = 256;
-      //desc.Height = 256;
-      //desc.Format = actual_desc_.Format;
-      //desc.MipLevels = 1;
-      //desc.SampleDesc.Count = 1;
-      //desc.SampleDesc.Quality = 0;
-      //desc.ArraySize = 1;
-      //desc.Usage = D3D11_USAGE_DEFAULT;
-      //desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
-      //// desc.MiscFlags = D3D11_RESOURCE_MISC_GDI_COMPATIBLE;
-      //THROW_IF_ERR(d3d_device_->CreateTexture2D(&desc,NULL,&cube_texture_));
-      //THROW_IF_ERR(d3d_device_->CreateRenderTargetView(cube_texture_,0,&cube_view_));
-
-      //// 深度バッファの作成
-      //D3D11_TEXTURE2D_DESC depth = {} ;
-      //depth.Width = desc.Width;//rc.right - rc.left;client_width_;
-      //depth.Height = desc.Height;//rc.bottom - rc.top;client_height_;
-      //depth.MipLevels = 1;
-      //depth.ArraySize = 1;
-      //depth.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-      //depth.SampleDesc.Count = 1;
-      //depth.SampleDesc.Quality = 0;
-      //depth.Usage = D3D11_USAGE_DEFAULT;
-      //depth.BindFlags = D3D11_BIND_DEPTH_STENCIL;
-      //depth.CPUAccessFlags = 0;
-      //depth.MiscFlags = 0;
-      //THROW_IF_ERR(d3d_device_->CreateTexture2D( &depth, NULL, &cube_depth_texture_ ));
-
-      //D3D11_DEPTH_STENCIL_VIEW_DESC dsv = {};
-      //dsv.Format = depth.Format;
-      //dsv.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
-      //dsv.Texture2D.MipSlice = 0;
-      //THROW_IF_ERR(d3d_device_->CreateDepthStencilView( cube_depth_texture_, &dsv, &cube_depth_view_ ));
-      //THROW_IF_ERR(d3d_device_->CreateShaderResourceView(cube_texture_,0,&cube_shader_res_view_));
-
-      //D3D11_SAMPLER_DESC sdesc = {};
-      //sdesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-      //sdesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-      //sdesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-      //sdesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-      //sdesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-      //sdesc.MinLOD = 0;
-      //sdesc.MaxLOD = D3D11_FLOAT32_MAX;
-      //THROW_IFERR(d3d_device_->CreateSamplerState( &sdesc, &cube_sampler_state_ ));
-      //cube_mat_projection_ = XMMatrixPerspectiveFovLH( XM_PIDIV4, /*(rc.right - rc.left)/(rc.bottom - rc.top)*/256 / 256, 0.01f, 100.0f );
-
-    }
-    // 
-
-    init_ = true;// 初期化完了
   }
+
+  //  template <typename ProcType> 
+  //  void  base_win32_window<ProcType>::create_device(){
+  //    calc_client_size();
+  //    HRESULT hr = S_OK;
+  //    init_ = false;
+  //    RECT rc;
+  //    GetWindowRect(hwnd_,&rc);
+  //
+  //    // アダプタデバイス情報の取得
+  //    //LARGE_INTEGER version;
+  //    THROW_IF_ERR(dxgi_factory_->EnumAdapters1(0,&dxgi_adapter_));
+  //    //THROW_IF_ERR(dxgi_adapter_->CheckInterfaceSupport( __uuidof(ID3D10Device),&version));
+  //
+  //
+  //    // D3DDeviceの作成
+  //
+  //    std::vector<D3D_FEATURE_LEVEL> feature_levels = 
+  //      boost::assign::list_of<D3D_FEATURE_LEVEL>
+  //      (D3D_FEATURE_LEVEL_11_0 )        // DirectX11対応GPU
+  //      (D3D_FEATURE_LEVEL_10_1)        // DirectX10.1対応GPU
+  //      (D3D_FEATURE_LEVEL_10_0 );       // DirectX10対応GPU
+  //
+  //    D3D_FEATURE_LEVEL level;
+  //    THROW_IF_ERR(::D3D11CreateDevice(
+  //      dxgi_adapter_.Get(),
+  //      D3D_DRIVER_TYPE_UNKNOWN ,
+  //      NULL,
+  //      D3D11_CREATE_DEVICE_DEBUG,
+  //      &feature_levels[0],
+  //      feature_levels.size(),
+  //      D3D11_SDK_VERSION,
+  //      &d3d_device_,
+  //      &level,
+  //      &d3d_context_));
+  //
+  //    THROW_IF_ERR(dxgi_adapter_->EnumOutputs(0,&output_));
+  //
+  //    // MSAA
+  //    DXGI_SAMPLE_DESC msaa;
+  //    for(int i = 0; i <= D3D11_MAX_MULTISAMPLE_SAMPLE_COUNT; i++){
+  //      UINT q;
+  //      if SUCCEEDED(d3d_device_->CheckMultisampleQualityLevels(DXGI_FORMAT_D24_UNORM_S8_UINT, i, &q)){
+  //        if(1 < q){
+  //          msaa.Count = i;
+  //          msaa.Quality = q - 1;
+  //          break;
+  //        }
+  //      }
+  //    }
+  //
+  //    // 表示モード
+  //    DXGI_MODE_DESC desired_desc = {};// , actual_desc_ = {};
+  //    // 各色8ビットで符号化なし正規化数
+  //    desired_desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+  //    desired_desc.Height = height_;// 高さ
+  //    desired_desc.Width = width_;// 幅
+  //    desired_desc.Scaling = DXGI_MODE_SCALING_CENTERED;// スケーリングなし
+  //    // リフレッシュレートを60Hzを要求する
+  //
+  //    desired_desc.RefreshRate.Numerator = 60000;
+  //    desired_desc.RefreshRate.Denominator = 1000;
+  //    // 近いモードを検索
+  //    THROW_IF_ERR(output_->FindClosestMatchingMode(&desired_desc,&actual_desc_,d3d_device_.Get()));
+  //
+  //    //// スワップチェーンの作成
+  //    //{
+  //    //  DXGI_SWAP_CHAIN_DESC desc = {};
+  //
+  //    //  desc.BufferDesc = actual_desc_;
+  //    //  desc.SampleDesc.Count	= 1;
+  //    //  desc.BufferUsage			= DXGI_USAGE_RENDER_TARGET_OUTPUT;
+  //    //  desc.BufferCount			= 1;
+  //    //  //      desc.SampleDesc = msaa;
+  //    //  desc.OutputWindow		= hwnd_;
+  //    //  //desc.SwapEffect			= DXGI_SWAP_EFFECT_DISCARD;
+  //    //  desc.Windowed			= TRUE;
+  //    //  desc.Flags = DXGI_SWAP_CHAIN_FLAG_GDI_COMPATIBLE;
+  //
+  //    //  THROW_IF_ERR(dxgi_factory_->CreateSwapChain(d3d_device_,&desc,&dxgi_swap_chain_));
+  //
+  //    //}
+  //
+  //    // バックバッファの作成
+  //  
+  //    D3D11_TEXTURE2D_DESC desc = {0};
+  //    desc.Width = actual_desc_.Width;
+  //    desc.Height = actual_desc_.Height;
+  //    desc.Format = actual_desc_.Format;
+  //    desc.MipLevels = 1;
+  //    desc.SampleDesc.Count = 1;
+  //    desc.SampleDesc.Quality = 0;
+  //    desc.ArraySize = 1;
+  //    desc.Usage = D3D11_USAGE_DEFAULT;
+  //    desc.BindFlags = D3D11_BIND_RENDER_TARGET;
+  //    desc.MiscFlags = D3D11_RESOURCE_MISC_GDI_COMPATIBLE;
+  //    THROW_IF_ERR(d3d_device_->CreateTexture2D(&desc,NULL,&back_buffer_));
+  //
+  //    // スワップチェーン依存リソースの作成
+  //    
+  //    create_swapchain_dependent_resources();
+  //
+  //    {
+  //      // バーテックスシェーダのコンパイル
+  //      ID3DBlobPtr vsblob,vserrblob;
+  //      DWORD compile_flag = D3DCOMPILE_ENABLE_STRICTNESS;
+  //#if defined( DEBUG ) || defined( _DEBUG )
+  //      compile_flag |= D3DCOMPILE_DEBUG;
+  //#endif
+  //
+  //	  HRESULT hr = D3DCompileFromFile
+  //		  (
+  //			L"dxgi_test.fx", NULL,D3D_COMPILE_STANDARD_FILE_INCLUDE , "VS", "vs_5_0", 
+  //        compile_flag, 0, &vsblob, &vserrblob );
+  //      if( FAILED( hr ) )
+  //      {
+  //        if( vserrblob != NULL )
+  //          OutputDebugStringA( (char*)vserrblob->GetBufferPointer() );
+  //        if( vserrblob ) vserrblob.Reset();
+  //        throw sf::win32_error_exception(hr);
+  //      }
+  //
+  //      // バーテックスシェーダの生成
+  //      THROW_IF_ERR(d3d_device_->CreateVertexShader( vsblob->GetBufferPointer(), vsblob->GetBufferSize(), NULL, &v_shader_ ));
+  //
+  //      // 入力頂点レイアウトの定義
+  //      D3D11_INPUT_ELEMENT_DESC
+  //        layout[] = {
+  //          { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+  //          { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+  //          { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 }};
+  //          ;
+  //
+  //          // 入力頂点レイアウトの生成
+  //          THROW_IF_ERR(d3d_device_->CreateInputLayout( layout, ARRAYSIZE(layout), vsblob->GetBufferPointer(),
+  //            vsblob->GetBufferSize(), &input_layout_ ));
+  //          vsblob.Reset();
+  //    }
+  //
+  //    // 入力レイアウトの設定
+  //    d3d_context_->IASetInputLayout( input_layout_.Get() );
+  //
+  //    // ピクセル・シェーダーのコンパイル
+  //    {
+  //      ID3DBlobPtr psblob,pserror;
+  //      DWORD compile_flag = D3DCOMPILE_ENABLE_STRICTNESS;
+  //#if defined( DEBUG ) || defined( _DEBUG )
+  //      compile_flag |= D3DCOMPILE_DEBUG;
+  //#endif
+  //      HRESULT hr = D3DCompileFromFile( L"dxgi_test.fx", NULL, D3D_COMPILE_STANDARD_FILE_INCLUDE, "PS", "ps_5_0", 
+  //        compile_flag, 0,  &psblob, &pserror);
+  //      if( FAILED( hr ) )
+  //      {
+  //        if( pserror != NULL )
+  //          OutputDebugStringA( (char*)pserror->GetBufferPointer() );
+  //        safe_release(pserror);
+  //        throw sf::win32_error_exception(hr);
+  //      }
+  //
+  //      // ピクセルシェーダの作成
+  //      THROW_IF_ERR(d3d_device_->CreatePixelShader( psblob->GetBufferPointer(), psblob->GetBufferSize(), NULL, &p_shader_ ));
+  //
+  //      psblob.Reset();
+  //    }
+  //
+  //    // バーテックスバッファの作成
+  //    // Create vertex buffer
+  //    simple_vertex vertices[] =
+  //    {
+  //      { XMFLOAT3( 0.0f, 0.0f,0.0f ),XMFLOAT3( 0.0f, 0.0f, -1.0f ) , XMFLOAT2( 0.0f, 0.0f ) },
+  //      { XMFLOAT3( 640.0f, 0.0f, 0.0f ),XMFLOAT3( 0.0f, 0.0f, -1.0f ), XMFLOAT2( 1.0f, 0.0f ) },
+  //      { XMFLOAT3( 0.0f, 480.0f, 0.0f ),XMFLOAT3( 0.0f, 0.0f, -1.0f ) , XMFLOAT2( 0.0f, 1.0f ) },
+  //      { XMFLOAT3( 640.0f, 480.0f, 0.0f ),XMFLOAT3( 0.0f, 0.0f, -1.0f ), XMFLOAT2( 1.0f, 1.0f ) }
+  //
+  //      //{ XMFLOAT3( -1.0f, -1.0f, 2.0f ),XMFLOAT3( 0.0f, 0.0f, -1.0f ) , XMFLOAT2( 1.0f, 1.0f ) },
+  //      //{ XMFLOAT3( 1.0f, -1.0f, 2.0f ),XMFLOAT3( 0.0f, 0.0f, -1.0f ), XMFLOAT2( 0.0f, 1.0f ) },
+  //      //{ XMFLOAT3( -1.0f, 1.0f, 2.0f ),XMFLOAT3( 0.0f, 0.0f, -1.0f ) , XMFLOAT2( 1.0f, 0.0f ) },
+  //      //{ XMFLOAT3( 1.0f, 1.0f, 2.0f ),XMFLOAT3( 0.0f, 0.0f, -1.0f ), XMFLOAT2( 0.0f, 0.0f ) }
+  //      // ---------------------
+  //      //{ XMFLOAT3( -1.0f, 1.0f, -1.0f ), XMFLOAT3( 0.0f, 1.0f, 0.0f ),XMFLOAT2( 0.0f, 0.0f ) },
+  //      //{ XMFLOAT3( 1.0f, 1.0f, -1.0f ),XMFLOAT3( 0.0f, 1.0f, 0.0f ), XMFLOAT2( 1.0f, 0.0f ) },
+  //      //{ XMFLOAT3( 1.0f, 1.0f, 1.0f ),XMFLOAT3( 0.0f, 1.0f, 0.0f ), XMFLOAT2( 1.0f, 1.0f ) },
+  //      //{ XMFLOAT3( -1.0f, 1.0f, 1.0f ), XMFLOAT3( 0.0f, 1.0f, 0.0f ) ,XMFLOAT2( 0.0f, 1.0f ) },
+  //
+  //      //{ XMFLOAT3( -1.0f, -1.0f, -1.0f ),XMFLOAT3( 0.0f, -1.0f, 0.0f ), XMFLOAT2( 0.0f, 0.0f ) },
+  //      //{ XMFLOAT3( 1.0f, -1.0f, -1.0f ),  XMFLOAT3( 0.0f, -1.0f, 0.0f ) ,XMFLOAT2( 1.0f, 0.0f ) },
+  //      //{ XMFLOAT3( 1.0f, -1.0f, 1.0f ), XMFLOAT3( 0.0f, -1.0f, 0.0f ) , XMFLOAT2( 1.0f, 1.0f ) },
+  //      //{ XMFLOAT3( -1.0f, -1.0f, 1.0f ), XMFLOAT3( 0.0f, -1.0f, 0.0f ),XMFLOAT2( 0.0f, 1.0f ) },
+  //
+  //      //{ XMFLOAT3( -1.0f, -1.0f, 1.0f ),XMFLOAT3( -1.0f, 0.0f, 0.0f ) , XMFLOAT2( 0.0f, 0.0f ) },
+  //      //{ XMFLOAT3( -1.0f, -1.0f, -1.0f ),XMFLOAT3( -1.0f, 0.0f, 0.0f ), XMFLOAT2( 1.0f, 0.0f ) },
+  //      //{ XMFLOAT3( -1.0f, 1.0f, -1.0f ), XMFLOAT3( -1.0f, 0.0f, 0.0f ),XMFLOAT2( 1.0f, 1.0f ) },
+  //      //{ XMFLOAT3( -1.0f, 1.0f, 1.0f ),XMFLOAT3( -1.0f, 0.0f, 0.0f ), XMFLOAT2( 0.0f, 1.0f ) },
+  //
+  //      //{ XMFLOAT3( 1.0f, -1.0f, 1.0f ),XMFLOAT3( 1.0f, 0.0f, 0.0f ), XMFLOAT2( 0.0f, 0.0f ) },
+  //      //{ XMFLOAT3( 1.0f, -1.0f, -1.0f ),XMFLOAT3( 1.0f, 0.0f, 0.0f ), XMFLOAT2( 1.0f, 0.0f ) },
+  //      //{ XMFLOAT3( 1.0f, 1.0f, -1.0f ),XMFLOAT3( 1.0f, 0.0f, 0.0f ), XMFLOAT2( 1.0f, 1.0f ) },
+  //      //{ XMFLOAT3( 1.0f, 1.0f, 1.0f ),XMFLOAT3( 1.0f, 0.0f, 0.0f ), XMFLOAT2( 0.0f, 1.0f ) },
+  //
+  //      //{ XMFLOAT3( -1.0f, -1.0f, -1.0f ),XMFLOAT3( 0.0f, 0.0f, -1.0f ) , XMFLOAT2( 0.0f, 0.0f ) },
+  //      //{ XMFLOAT3( 1.0f, -1.0f, -1.0f ),XMFLOAT3( 0.0f, 0.0f, -1.0f ), XMFLOAT2( 1.0f, 0.0f ) },
+  //      //{ XMFLOAT3( 1.0f, 1.0f, -1.0f ),XMFLOAT3( 0.0f, 0.0f, -1.0f ), XMFLOAT2( 1.0f, 1.0f ) },
+  //      //{ XMFLOAT3( -1.0f, 1.0f, -1.0f ),XMFLOAT3( 0.0f, 0.0f, -1.0f ) , XMFLOAT2( 0.0f, 1.0f ) },
+  //
+  //      //{ XMFLOAT3( -1.0f, -1.0f, 1.0f ), XMFLOAT3( 0.0f, 0.0f, 1.0f ) , XMFLOAT2( 0.0f, 0.0f ) },
+  //      //{ XMFLOAT3( 1.0f, -1.0f, 1.0f ), XMFLOAT3( 0.0f, 0.0f, 1.0f ) , XMFLOAT2( 1.0f, 0.0f ) },
+  //      //{ XMFLOAT3( 1.0f, 1.0f, 1.0f ),XMFLOAT3( 0.0f, 0.0f, 1.0f ), XMFLOAT2( 1.0f, 1.0f ) },
+  //      //{ XMFLOAT3( -1.0f, 1.0f, 1.0f ), XMFLOAT3( 0.0f, 0.0f, 1.0f ),XMFLOAT2( 0.0f, 1.0f ) }
+  //    };
+  //    //std::vector<simple_vertex> vertices = boost::assign::list_of<simple_vertex>
+  //    //
+  //    //    ( XMFLOAT3( -1.0f, 1.0f, -1.0f ), XMFLOAT2( 0.0f, 0.0f ) )
+  //    //    ( XMFLOAT3( 1.0f, 1.0f, -1.0f ), XMFLOAT2( 1.0f, 0.0f ) )
+  //    //    ( XMFLOAT3( 1.0f, 1.0f, 1.0f ), XMFLOAT2( 1.0f, 1.0f ) )
+  //    //    ( XMFLOAT3( -1.0f, 1.0f, 1.0f ), XMFLOAT2( 0.0f, 1.0f ) )
+  //
+  //    //    ( XMFLOAT3( -1.0f, -1.0f, -1.0f ), XMFLOAT2( 0.0f, 0.0f ) )
+  //    //    ( XMFLOAT3( 1.0f, -1.0f, -1.0f ), XMFLOAT2( 1.0f, 0.0f ) )
+  //    //    ( XMFLOAT3( 1.0f, -1.0f, 1.0f ), XMFLOAT2( 1.0f, 1.0f ) )
+  //    //    ( XMFLOAT3( -1.0f, -1.0f, 1.0f ), XMFLOAT2( 0.0f, 1.0f ) )
+  //
+  //    //    ( XMFLOAT3( -1.0f, -1.0f, 1.0f ), XMFLOAT2( 0.0f, 0.0f ) )
+  //    //    ( XMFLOAT3( -1.0f, -1.0f, -1.0f ), XMFLOAT2( 1.0f, 0.0f ) )
+  //    //    ( XMFLOAT3( -1.0f, 1.0f, -1.0f ), XMFLOAT2( 1.0f, 1.0f ) )
+  //    //    ( XMFLOAT3( -1.0f, 1.0f, 1.0f ), XMFLOAT2( 0.0f, 1.0f ) )
+  //
+  //    //    ( XMFLOAT3( 1.0f, -1.0f, 1.0f ), XMFLOAT2( 0.0f, 0.0f ) )
+  //    //    ( XMFLOAT3( 1.0f, -1.0f, -1.0f ), XMFLOAT2( 1.0f, 0.0f ) )
+  //    //    ( XMFLOAT3( 1.0f, 1.0f, -1.0f ), XMFLOAT2( 1.0f, 1.0f ) )
+  //    //    ( XMFLOAT3( 1.0f, 1.0f, 1.0f ), XMFLOAT2( 0.0f, 1.0f ) )
+  //
+  //    //    ( XMFLOAT3( -1.0f, -1.0f, -1.0f ), XMFLOAT2( 0.0f, 0.0f ) )
+  //    //    ( XMFLOAT3( 1.0f, -1.0f, -1.0f ), XMFLOAT2( 1.0f, 0.0f ) )
+  //    //    ( XMFLOAT3( 1.0f, 1.0f, -1.0f ), XMFLOAT2( 1.0f, 1.0f ) )
+  //    //    ( XMFLOAT3( -1.0f, 1.0f, -1.0f ), XMFLOAT2( 0.0f, 1.0f ) )
+  //
+  //    //    ( XMFLOAT3( -1.0f, -1.0f, 1.0f ), XMFLOAT2( 0.0f, 0.0f ) )
+  //    //    ( XMFLOAT3( 1.0f, -1.0f, 1.0f ), XMFLOAT2( 1.0f, 0.0f ) )
+  //    //    ( XMFLOAT3( 1.0f, 1.0f, 1.0f ), XMFLOAT2( 1.0f, 1.0f ) )
+  //    //    ( XMFLOAT3( -1.0f, 1.0f, 1.0f ), XMFLOAT2( 0.0f, 1.0f ) );
+  //
+  //    D3D11_BUFFER_DESC bd = {};
+  //    bd.Usage = D3D11_USAGE_DEFAULT;
+  //    bd.ByteWidth = sizeof( simple_vertex ) * 4;
+  //    bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+  //    bd.CPUAccessFlags = 0;
+  //
+  //    D3D11_SUBRESOURCE_DATA init_data = {};
+  //    init_data.pSysMem = vertices;
+  //    THROW_IF_ERR(d3d_device_->CreateBuffer( &bd, &init_data, &v_buffer_ ));
+  //
+  //    // 頂点バッファのセット
+  //    uint32_t stride = sizeof( simple_vertex );
+  //    uint32_t offset = 0;
+  //    d3d_context_->IASetVertexBuffers( 0, 1, v_buffer_.GetAddressOf(), &stride, &offset );
+  //
+  //    // インデックスバッファの生成
+  //    WORD indices[] =
+  //    {
+  //      0,1,2,
+  //      2,3,1
+  //      //3,1,0,
+  //      //2,1,3,
+  //      //6,4,5,
+  //      //7,4,6,
+  //      //11,9,8,
+  //      //10,9,11,
+  //      //14,12,13,
+  //      //15,12,14,
+  //      //19,17,16,
+  //      //18,17,19,
+  //      //22,20,21,
+  //      //23,20,22
+  //    };
+  //
+  //    bd.Usage = D3D11_USAGE_DEFAULT;
+  //    bd.ByteWidth = sizeof( WORD ) * 6;
+  //    bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
+  //    bd.CPUAccessFlags = 0;
+  //    init_data.pSysMem = indices;
+  //    THROW_IF_ERR(d3d_device_->CreateBuffer( &bd, &init_data, &i_buffer_ ));
+  //
+  //    // インデックスバッファのセット
+  //    d3d_context_->IASetIndexBuffer( i_buffer_.Get(), DXGI_FORMAT_R16_UINT, 0 );
+  //
+  //    // プリミティブの形態を指定する
+  //    d3d_context_->IASetPrimitiveTopology( D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP );
+  //
+  //    // 定数バッファを生成する。
+  //    bd.Usage = D3D11_USAGE_DEFAULT;
+  //    bd.ByteWidth = sizeof(cb_never_changes);
+  //    bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+  //    bd.CPUAccessFlags = 0;
+  //    THROW_IF_ERR(d3d_device_->CreateBuffer( &bd, NULL, &cb_never_changes_ ));
+  //
+  //    bd.ByteWidth = sizeof(cb_change_on_resize);
+  //    THROW_IF_ERR(d3d_device_->CreateBuffer( &bd, NULL, &cb_change_on_resize_ ));
+  //
+  //    bd.ByteWidth = sizeof(cb_changes_every_frame);
+  //    THROW_IF_ERR(d3d_device_->CreateBuffer( &bd, NULL, &cb_changes_every_frame_ ));
+  //
+  //    // テクスチャのロード
+  //	ID3D11ResourcePtr ptr;
+  //    THROW_IF_ERR(CreateDDSTextureFromFile( d3d_device_.Get(), L"SF.dds", &ptr, &shader_res_view_, NULL ));
+  ////    THROW_IF_ERR(CreateDDSTextureFromFile( d3d_device_, L"SF.dds", NULL, NULL, &shader_res_view_, NULL ));
+  //
+  //    // サンプルステートの生成
+  //    D3D11_SAMPLER_DESC sdesc = {};
+  //    sdesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+  //    sdesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+  //    sdesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+  //    sdesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+  //    sdesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+  //    sdesc.MinLOD = 0;
+  //    sdesc.MaxLOD = D3D11_FLOAT32_MAX;
+  //    THROW_IF_ERR(d3d_device_->CreateSamplerState( &sdesc, &sampler_state_ ));
+  //
+  //    // ワールド座標変換行列のセットアップ
+  //    mat_world_ = XMMatrixIdentity();
+  //
+  //    //g_vMeshColor( 0.7f, 0.7f, 0.7f, 1.0f );
+  //    // 
+  //    init_view_matrix();
+  //
+  //
+  //
+  //    // 動的テクスチャの生成
+  //    {
+  //      //D3D11_TEXTURE2D_DESC desc = {0};
+  //      //desc.Width = 256;
+  //      //desc.Height = 256;
+  //      //desc.Format = actual_desc_.Format;
+  //      //desc.MipLevels = 1;
+  //      //desc.SampleDesc.Count = 1;
+  //      //desc.SampleDesc.Quality = 0;
+  //      //desc.ArraySize = 1;
+  //      //desc.Usage = D3D11_USAGE_DEFAULT;
+  //      //desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+  //      //// desc.MiscFlags = D3D11_RESOURCE_MISC_GDI_COMPATIBLE;
+  //      //THROW_IF_ERR(d3d_device_->CreateTexture2D(&desc,NULL,&cube_texture_));
+  //      //THROW_IF_ERR(d3d_device_->CreateRenderTargetView(cube_texture_,0,&cube_view_));
+  //
+  //      //// 深度バッファの作成
+  //      //D3D11_TEXTURE2D_DESC depth = {} ;
+  //      //depth.Width = desc.Width;//rc.right - rc.left;client_width_;
+  //      //depth.Height = desc.Height;//rc.bottom - rc.top;client_height_;
+  //      //depth.MipLevels = 1;
+  //      //depth.ArraySize = 1;
+  //      //depth.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+  //      //depth.SampleDesc.Count = 1;
+  //      //depth.SampleDesc.Quality = 0;
+  //      //depth.Usage = D3D11_USAGE_DEFAULT;
+  //      //depth.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+  //      //depth.CPUAccessFlags = 0;
+  //      //depth.MiscFlags = 0;
+  //      //THROW_IF_ERR(d3d_device_->CreateTexture2D( &depth, NULL, &cube_depth_texture_ ));
+  //
+  //      //D3D11_DEPTH_STENCIL_VIEW_DESC dsv = {};
+  //      //dsv.Format = depth.Format;
+  //      //dsv.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+  //      //dsv.Texture2D.MipSlice = 0;
+  //      //THROW_IF_ERR(d3d_device_->CreateDepthStencilView( cube_depth_texture_, &dsv, &cube_depth_view_ ));
+  //      //THROW_IF_ERR(d3d_device_->CreateShaderResourceView(cube_texture_,0,&cube_shader_res_view_));
+  //
+  //      //D3D11_SAMPLER_DESC sdesc = {};
+  //      //sdesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+  //      //sdesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+  //      //sdesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+  //      //sdesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+  //      //sdesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+  //      //sdesc.MinLOD = 0;
+  //      //sdesc.MaxLOD = D3D11_FLOAT32_MAX;
+  //      //THROW_IF_ERR(d3d_device_->CreateSamplerState( &sdesc, &cube_sampler_state_ ));
+  //      //cube_mat_projection_ = XMMatrixPerspectiveFovLH( XM_PIDIV4, /*(rc.right - rc.left)/(rc.bottom - rc.top)*/256 / 256, 0.01f, 100.0f );
+  //
+  //    }
+  //    // 
+  //
+  //    init_ = true;// 初期化完了
+  //  }
 
 
   template <typename ProcType> 
   void  base_win32_window<ProcType>::init_view_matrix()
   {
-    // ビュー行列のセットアップ
-	  //基本value設定
-	  float aspect = (float) width_ / height_;	    //アスペクト比(高さを1としたときの幅)
-	  float depth = 1.0f;										//奥行きZ
-	  float fovy  = (float)atan(1.0f / depth) * 2.0f;					//視野をZ=0でデバイスの幅と高さに合わせる
-	
-	  XMVECTOR eye = { 0.0f, 0.0f, -depth, 0.0f };
-	  XMVECTOR at = { 0.0f, 0.0f, 0.0f, 0.0f};
-	  XMVECTOR up = { 0.0f, 1.0f, 0.0f, 0.0f };
-    mat_view_ = XMMatrixLookAtLH( eye, at, up );
-    cb_never_changes cnc;
-    cnc.mView = XMMatrixTranspose( mat_view_ );
-    //cnc.vLightColor = XMFLOAT4( 1.0f, 0.5f, 0.5f, 1.0f );
-    cnc.vLightDir =  XMFLOAT4(0.577f, 0.577f, -0.977f, 1.0f);
-    // 定数バッファに格納
-    d3d_context_->UpdateSubresource( cb_never_changes_.Get(), 0, NULL, &cnc, 0, 0 );
+    // // ビュー行列のセットアップ
+    ////基本value設定
+    //float aspect = (float) width_ / height_;	    //アスペクト比(高さを1としたときの幅)
+    //float depth = 1.0f;										//奥行きZ
+    //float fovy  = (float)atan(1.0f / depth) * 2.0f;					//視野をZ=0でデバイスの幅と高さに合わせる
 
-    // 投影行列のセットアップ
+    //XMVECTOR eye = { 0.0f, 0.0f, -depth, 0.0f };
+    //XMVECTOR at = { 0.0f, 0.0f, 0.0f, 0.0f};
+    //XMVECTOR up = { 0.0f, 1.0f, 0.0f, 0.0f };
+    // mat_view_ = XMMatrixLookAtLH( eye, at, up );
+    // cb_never_changes cnc;
+    // cnc.mView = XMMatrixTranspose( mat_view_ );
+    // //cnc.vLightColor = XMFLOAT4( 1.0f, 0.5f, 0.5f, 1.0f );
+    // cnc.vLightDir =  XMFLOAT4(0.577f, 0.577f, -0.977f, 1.0f);
+    // // 定数バッファに格納
+    // d3d_context_->UpdateSubresource( cb_never_changes_.Get(), 0, NULL, &cnc, 0, 0 );
 
-    //mat_projection_ = XMMatrixPerspectiveFovLH( XM_PIDIV4, /*(rc.right - rc.left)/(rc.bottom - rc.top)*/width_ / height_, 0.01f, 100.0f );
-    //mat_projection_ = XMMatrixPerspectiveFovLH( fovy, aspect, 0.01f, 100.0f );
-    mat_projection_ = XMMatrixPerspectiveFovLH( fovy, 1.0, 0.0001f, 100.0f );
-    cb_change_on_resize ccor;
-    ccor.mProjection = XMMatrixTranspose( mat_projection_ );
-    // 定数バッファに格納
-    d3d_context_->UpdateSubresource( cb_change_on_resize_.Get(), 0, NULL, &ccor, 0, 0 );
+    // // 投影行列のセットアップ
+
+    // //mat_projection_ = XMMatrixPerspectiveFovLH( XM_PIDIV4, /*(rc.right - rc.left)/(rc.bottom - rc.top)*/width_ / height_, 0.01f, 100.0f );
+    // //mat_projection_ = XMMatrixPerspectiveFovLH( fovy, aspect, 0.01f, 100.0f );
+    // mat_projection_ = XMMatrixPerspectiveFovLH( fovy, 1.0, 0.0001f, 100.0f );
+    // cb_change_on_resize ccor;
+    // ccor.mProjection = XMMatrixTranspose( mat_projection_ );
+    // // 定数バッファに格納
+    // d3d_context_->UpdateSubresource( cb_change_on_resize_.Get(), 0, NULL, &ccor, 0, 0 );
 
   }
   template <typename ProcType> 
   void  base_win32_window<ProcType>::create_swapchain_dependent_resources()
   {
 
-    // ビューの作成
-    //THROW_IF_ERR(swap_chain_->GetBuffer(0,texture_.GetIID(),(void**)&texture_));
-    //D3D11_TEXTURE2D_DESC desc;
-    //texture_->GetDesc(&desc);
+    //   // ビューの作成
+    //   //THROW_IF_ERR(dxgi_swap_chain_->GetBuffer(0,texture_.GetIID(),(void**)&texture_));
+    //   //D3D11_TEXTURE2D_DESC desc;
+    //   //texture_->GetDesc(&desc);
 
-    //THROW_IF_ERR(d3d_device_->CreateRenderTargetView(texture_,0,&view_));
-    //texture_.Release();
-    THROW_IF_ERR(d3d_device_->CreateRenderTargetView(back_buffer_.Get(),0,view_.GetAddressOf()));
-    D3D11_TEXTURE2D_DESC desc;
-    back_buffer_->GetDesc(&desc);
+    //   //THROW_IF_ERR(d3d_device_->CreateRenderTargetView(texture_,0,&view_));
+    //   //texture_.Release();
+    //   THROW_IF_ERR(d3d_device_->CreateRenderTargetView(back_buffer_.Get(),0,view_.GetAddressOf()));
+    //   D3D11_TEXTURE2D_DESC desc;
+    //   back_buffer_->GetDesc(&desc);
 
-    // 深度バッファの作成
-    D3D11_TEXTURE2D_DESC depth = {} ;
-    depth.Width = desc.Width;//rc.right - rc.left;client_width_;
-    depth.Height = desc.Height;//rc.bottom - rc.top;client_height_;
-    depth.MipLevels = 1;
-    depth.ArraySize = 1;
-    depth.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-    depth.SampleDesc.Count = 1;
-    depth.SampleDesc.Quality = 0;
-    depth.Usage = D3D11_USAGE_DEFAULT;
-    depth.BindFlags = D3D11_BIND_DEPTH_STENCIL;
-    depth.CPUAccessFlags = 0;
-    depth.MiscFlags = 0;
-    THROW_IF_ERR(d3d_device_->CreateTexture2D( &depth, NULL, &depth_texture_ ));
+    //   // 深度バッファの作成
+    //   D3D11_TEXTURE2D_DESC depth = {} ;
+    //   depth.Width = desc.Width;//rc.right - rc.left;client_width_;
+    //   depth.Height = desc.Height;//rc.bottom - rc.top;client_height_;
+    //   depth.MipLevels = 1;
+    //   depth.ArraySize = 1;
+    //   depth.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+    //   depth.SampleDesc.Count = 1;
+    //   depth.SampleDesc.Quality = 0;
+    //   depth.Usage = D3D11_USAGE_DEFAULT;
+    //   depth.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+    //   depth.CPUAccessFlags = 0;
+    //   depth.MiscFlags = 0;
+    //   THROW_IF_ERR(d3d_device_->CreateTexture2D( &depth, NULL, &depth_texture_ ));
 
-    D3D11_DEPTH_STENCIL_VIEW_DESC dsv = {};
-    dsv.Format = depth.Format;
-    dsv.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
-    dsv.Texture2D.MipSlice = 0;
-    THROW_IF_ERR(d3d_device_->CreateDepthStencilView( depth_texture_.Get(), &dsv, depth_view_.GetAddressOf() ));
+    //   D3D11_DEPTH_STENCIL_VIEW_DESC dsv = {};
+    //   dsv.Format = depth.Format;
+    //   dsv.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+    //   dsv.Texture2D.MipSlice = 0;
+    //   THROW_IF_ERR(d3d_device_->CreateDepthStencilView( depth_texture_.Get(), &dsv, depth_view_.GetAddressOf() ));
 
-    // OMステージに登録する
-    // d3d_context_->OMSetRenderTargets( 1, &view_.Get(), depth_view_ );
-    d3d_context_->OMSetRenderTargets( 1, view_.GetAddressOf(), depth_view_.Get() );
+    //   // OMステージに登録する
+    //   // d3d_context_->OMSetRenderTargets( 1, &view_.Get(), depth_view_ );
+    //   d3d_context_->OMSetRenderTargets( 1, view_.GetAddressOf(), depth_view_.Get() );
 
-    // ビューポートの設定
-    D3D11_VIEWPORT vp;
-    vp.Width = depth.Width;//client_width_;
-    vp.Height = depth.Height;//client_height_;
-    vp.MinDepth = 0.0f;
-    vp.MaxDepth = 1.0f;
-    vp.TopLeftX = 0;
-    vp.TopLeftY = 0;
-    d3d_context_->RSSetViewports( 1, &vp );
+    //   // ビューポートの設定
+    //   D3D11_VIEWPORT vp;
+    //   vp.Width = depth.Width;//client_width_;
+    //   vp.Height = depth.Height;//client_height_;
+    //   vp.MinDepth = 0.0f;
+    //   vp.MaxDepth = 1.0f;
+    //   vp.TopLeftX = 0;
+    //   vp.TopLeftY = 0;
+    //   d3d_context_->RSSetViewports( 1, &vp );
 
-	ID3D11RasterizerState* hpRasterizerState = NULL;
-	D3D11_RASTERIZER_DESC hRasterizerDesc = {
-			D3D11_FILL_SOLID,
-			D3D11_CULL_NONE,	//ポリゴンの裏表を無くす
-			FALSE,
-			0,
-			0.0f,
-			FALSE,
-			FALSE,
-			FALSE,
-			FALSE,
-			FALSE
-	};
-  d3d_device_->CreateRasterizerState(&hRasterizerDesc,&hpRasterizerState);
-  d3d_context_->RSSetState(hpRasterizerState);
+    //ID3D11RasterizerState* hpRasterizerState = NULL;
+    //D3D11_RASTERIZER_DESC hRasterizerDesc = {
+    //		D3D11_FILL_SOLID,
+    //		D3D11_CULL_NONE,	//ポリゴンの裏表を無くす
+    //		FALSE,
+    //		0,
+    //		0.0f,
+    //		FALSE,
+    //		FALSE,
+    //		FALSE,
+    //		FALSE,
+    //		FALSE
+    //};
+    // d3d_device_->CreateRasterizerState(&hRasterizerDesc,&hpRasterizerState);
+    // d3d_context_->RSSetState(hpRasterizerState);
   }
 
   template <typename ProcType> 
   void  base_win32_window<ProcType>::discard_swapchain_dependent_resources()
   {
-    safe_release(depth_view_);
-    safe_release(depth_texture_);
-    safe_release(view_);
-    safe_release(texture_);
+    //safe_release(depth_view_);
+    //safe_release(depth_texture_);
+    //safe_release(view_);
+    //safe_release(texture_);
   }
 
   template <typename ProcType> 
   void  base_win32_window<ProcType>::discard_device()
   {
-    safe_release(sampler_state_);
-    safe_release(shader_res_view_);
-    safe_release(cb_changes_every_frame_);
-    safe_release(cb_change_on_resize_);
-    safe_release(cb_never_changes_);
-    safe_release(i_buffer_);
-    safe_release(v_buffer_);
-    safe_release(p_shader_);
-    safe_release(input_layout_);
-    safe_release(v_shader_);
+    //safe_release(sampler_state_);
+    //safe_release(shader_res_view_);
+    //safe_release(cb_changes_every_frame_);
+    //safe_release(cb_change_on_resize_);
+    //safe_release(cb_never_changes_);
+    //safe_release(i_buffer_);
+    //safe_release(v_buffer_);
+    //safe_release(p_shader_);
+    //safe_release(input_layout_);
+    //safe_release(v_shader_);
+    dxgi_swap_chain_->SetFullscreenState(FALSE,nullptr);
     discard_swapchain_dependent_resources();
-    safe_release(back_buffer_);
+    d2d1_target_bitmap_.Reset();
+    back_buffer_.Reset();
+    dxgi_back_buffer_.Reset();
+    dxgi_swap_chain_.Reset();
+
     //safe_release(cube_sampler_state_);
     //safe_release(cube_shader_res_view_);
     //safe_release(cube_view_);
@@ -953,17 +1092,69 @@ namespace sf
     //safe_release(cube_texture_);
     //safe_release(cube_depth_texture_);
     //safe_release(render_target_);
-//    safe_release(swap_chain_);
-    safe_release(d3d_context_);
-    safe_release(d3d_device_);
-    safe_release(adapter_);
+    //    safe_release(dxgi_swap_chain_);
 
+    d2d_context_.Reset();
+    d2d_device_.Reset();
+
+
+    dxgi_output_.Reset();
+    dxgi_device_.Reset();
+
+
+    d3d_context_.Reset();
+    d3d_device_.Reset();
+    dxgi_adapter_.Reset();
+    dxgi_factory_.Reset();
   }
 
   template <typename ProcType> 
   void  base_win32_window<ProcType>::discard_device_independant_resources(){
-    safe_release(dxgi_factory_);
+    d2d_factory_.Reset();
+    write_factory_.Reset();
   }
+
+  template <typename ProcType>
+  void  base_win32_window<ProcType>::resize_resources()
+  {
+    THROW_IF_ERR(dxgi_swap_chain_->GetFullscreenState(FALSE,nullptr));
+    back_buffer_.Reset();
+    d2d_context_->SetTarget(nullptr);
+    d2d_context_.Reset();
+    d2d_device_.Reset();
+    d2d1_target_bitmap_.Reset();
+    dxgi_back_buffer_.Reset();
+
+    THROW_IF_ERR(dxgi_swap_chain_->ResizeBuffers(2,width_,height_,DXGI_FORMAT_B8G8R8A8_UNORM,0));
+
+    BOOL f = TRUE;
+    THROW_IF_ERR(dxgi_swap_chain_->GetFullscreenState(&f,nullptr));
+
+    THROW_IF_ERR(dxgi_swap_chain_->GetBuffer(0,IID_PPV_ARGS(&back_buffer_)));
+    // Direct2Dデバイスの作成
+    THROW_IF_ERR(d2d_factory_->CreateDevice(dxgi_device_.Get(),&d2d_device_));
+
+    // Direct2Dデバイスコンテキストの作成
+    THROW_IF_ERR(d2d_device_->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE,&d2d_context_));
+
+    // DXGIサーフェースからDirect2D描画用ビットマップを作成
+    THROW_IF_ERR(dxgi_swap_chain_->GetBuffer(0,IID_PPV_ARGS(&dxgi_back_buffer_)));
+    D2D1_BITMAP_PROPERTIES1 bitmap_properties = 
+      D2D1::BitmapProperties1(
+      D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
+      D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_IGNORE),
+      dpi_.dpix(),
+      dpi_.dpiy()
+      );
+
+    THROW_IF_ERR(d2d_context_->CreateBitmapFromDxgiSurface(
+      dxgi_back_buffer_.Get(),&bitmap_properties,&d2d1_target_bitmap_));
+
+    // Direct2D描画ターゲットの設定
+    d2d_context_->SetTarget(d2d1_target_bitmap_.Get());
+
+  }
+
 
   template <typename ProcType> 
   void  base_win32_window<ProcType>::get_dxgi_information()
@@ -981,8 +1172,8 @@ namespace sf
       adapter->GetDesc1(&desc);
       //adapter->CheckInterfaceSupport();
 
-      wdout << desc.Description << std::endl;
-      wdout << desc.DedicatedVideoMemory << std::endl;
+      debug_out(boost::wformat(L"%s \n") % desc.Description) ;
+      debug_out(boost::wformat(L"%d \n") % desc.DedicatedVideoMemory );
       IDXGIDevice1Ptr device;
 
       uint32_t oi = 0;
@@ -1007,17 +1198,16 @@ namespace sf
         for(uint32_t mode_index = 0;mode_index < num;++mode_index)
         {
           DXGI_MODE_DESC& mode(disp_modes[mode_index]);
-          wdout << boost::wformat(L"Format: %s %s \n Width: %d Height: %d RefleshRate: %d/%d Scaling:%s %s \n Scanline: %s %s ")
+          ::OutputDebugStringW((boost::wformat(L"Format: %s %s \n Width: %d Height: %d RefleshRate: %d/%d Scaling:%s %s \n Scanline: %s %s \n")
             %  display_modes[mode.Format].name % display_modes[mode.Format].description
             %  mode.Width % mode.Height 
             %  mode.RefreshRate.Numerator % mode.RefreshRate.Denominator
             %  scalings[mode.Scaling].name %  scalings[mode.Scaling].description
             %  scanline_orders[mode.ScanlineOrdering].name
-            %  scanline_orders[mode.ScanlineOrdering].description
-            << std::endl;
+            %  scanline_orders[mode.ScanlineOrdering].description).str().c_str());
         }
         //        output->
-        wdout << output_desc.DeviceName << std::endl; 
+        OutputDebugStringW((boost::wformat(L"%s \n") % output_desc.DeviceName ).str().c_str()); 
         oi++;
       }
 
@@ -1033,27 +1223,27 @@ namespace sf
     {
       update_window_size();
       calc_client_size();
-      discard_swapchain_dependent_resources();
-      back_buffer_.Reset();
-      D3D11_TEXTURE2D_DESC desc = {0};
-      desc.Width = width_;
-      desc.Height = height_;
-      desc.Format = actual_desc_.Format;
-      desc.MipLevels = 1;
-      desc.SampleDesc.Count = 1;
-      desc.SampleDesc.Quality = 0;
-      desc.ArraySize = 1;
-      desc.Usage = D3D11_USAGE_DEFAULT;
-      desc.BindFlags = D3D11_BIND_RENDER_TARGET;
-      desc.MiscFlags = D3D11_RESOURCE_MISC_GDI_COMPATIBLE;
-      THROW_IF_ERR(d3d_device_->CreateTexture2D(&desc,NULL,&back_buffer_));
-      //swap_chain_->ResizeBuffers(0,0,0,DXGI_FORMAT_B8G8R8A8_UNORM_SRGB,DXGI_SWAP_CHAIN_FLAG_GDI_COMPATIBLE);
-      create_swapchain_dependent_resources();
-      init_view_matrix(); 
+      //discard_swapchain_dependent_resources();
+      //back_buffer_.Reset();
+      //D3D11_TEXTURE2D_DESC desc = {0};
+      //desc.Width = width_;
+      //desc.Height = height_;
+      //desc.Format = actual_desc_.Format;
+      //desc.MipLevels = 1;
+      //desc.SampleDesc.Count = 1;
+      //desc.SampleDesc.Quality = 0;
+      //desc.ArraySize = 1;
+      //desc.Usage = D3D11_USAGE_DEFAULT;
+      //desc.BindFlags = D3D11_BIND_RENDER_TARGET;
+      //desc.MiscFlags = D3D11_RESOURCE_MISC_GDI_COMPATIBLE;
+      //THROW_IF_ERR(d3d_device_->CreateTexture2D(&desc,NULL,&back_buffer_));
+      ////dxgi_swap_chain_->ResizeBuffers(0,0,0,DXGI_FORMAT_B8G8R8A8_UNORM_SRGB,DXGI_SWAP_CHAIN_FLAG_GDI_COMPATIBLE);
+      //create_swapchain_dependent_resources();
+      //init_view_matrix(); 
 
       // リージョンの設定
-		  //HRGN rgn = CreateRectRgn(0, 0, width_, height_);
-		  //SetWindowRgn(hwnd_, rgn, FALSE);
+      //HRGN rgn = CreateRectRgn(0, 0, width_, height_);
+      //SetWindowRgn(hwnd_, rgn, FALSE);
 
     }
     return std::is_same<proc_t,wndproc>::value?0:FALSE;  
@@ -1077,8 +1267,8 @@ namespace sf
 
     // ウィンドウの指定領域を半透明にする
     // リージョンの設定
-		//HRGN rgn = CreateRectRgn(0, 0, width_, height_);
-		//SetWindowRgn(hwnd_, rgn, FALSE);
+    //HRGN rgn = CreateRectRgn(0, 0, width_, height_);
+    //SetWindowRgn(hwnd_, rgn, FALSE);
 
     create_device();
 
@@ -1106,89 +1296,89 @@ namespace sf
   template <typename ProcType>
   void base_win32_window<ProcType>::render()
   {
-
+    /*
     if(init_)
     {
-      static float rot = 0.0f;
+    static float rot = 0.0f;
 
-      float color[4] = { 0.0f, 0.0f, 0.0f, 0.5f };    
+    float color[4] = { 0.0f, 0.0f, 0.0f, 0.5f };    
 
-      // 描画ターゲットのクリア
-      d3d_context_->ClearRenderTargetView(view_.Get(),color);
-      // 深度バッファのクリア
-      d3d_context_->ClearDepthStencilView(depth_view_.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0 );
+    // 描画ターゲットのクリア
+    d3d_context_->ClearRenderTargetView(view_.Get(),color);
+    // 深度バッファのクリア
+    d3d_context_->ClearDepthStencilView(depth_view_.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0 );
 
-      // 色の変更
-      mesh_color_.x = 1.0f;
-      mesh_color_.y = 1.0f;
-      mesh_color_.z = 1.0f;
+    // 色の変更
+    mesh_color_.x = 1.0f;
+    mesh_color_.y = 1.0f;
+    mesh_color_.z = 1.0f;
 
-      // 定数更新
+    // 定数更新
 
-      cb_changes_every_frame cb;
+    cb_changes_every_frame cb;
 
-      mat_world_ = XMMatrixIdentity();
-//      mat_world_._11 = 2.0f / width_;
-	  mat_world_.r[0].m128_f32[0] = 2.0f / width_;
- //      mat_world_._22 = 2.0f  / height_ * -1.0f;
-	  mat_world_.r[1].m128_f32[1] = 2.0f  / height_ * -1.0f;
-//      mat_world_._41 = -1.0f;
-	  mat_world_.r[3].m128_f32[0] = -1.0f;
-//      mat_world_._42 = 1.0f;
-	  mat_world_.r[3].m128_f32[1] = 1.0f;
-      mat_world_ *= XMMatrixRotationX(rot);
-      rot += 0.005f;
-      cb.mWorld =  XMMatrixTranspose(mat_world_);
-      cb.vLightColor = mesh_color_;
-      d3d_context_->UpdateSubresource( cb_changes_every_frame_.Get(), 0, NULL, &cb, 0, 0 );
+    mat_world_ = XMMatrixIdentity();
+    //      mat_world_._11 = 2.0f / width_;
+    mat_world_.r[0].m128_f32[0] = 2.0f / width_;
+    //      mat_world_._22 = 2.0f  / height_ * -1.0f;
+    mat_world_.r[1].m128_f32[1] = 2.0f  / height_ * -1.0f;
+    //      mat_world_._41 = -1.0f;
+    mat_world_.r[3].m128_f32[0] = -1.0f;
+    //      mat_world_._42 = 1.0f;
+    mat_world_.r[3].m128_f32[1] = 1.0f;
+    mat_world_ *= XMMatrixRotationX(rot);
+    rot += 0.005f;
+    cb.mWorld =  XMMatrixTranspose(mat_world_);
+    cb.vLightColor = mesh_color_;
+    d3d_context_->UpdateSubresource( cb_changes_every_frame_.Get(), 0, NULL, &cb, 0, 0 );
 
-      // 四角形
-      d3d_context_->VSSetShader( v_shader_.Get(), NULL, 0 );
-      d3d_context_->VSSetConstantBuffers( 0, 1, cb_never_changes_.GetAddressOf() );
-      d3d_context_->VSSetConstantBuffers( 1, 1, cb_change_on_resize_.GetAddressOf() );
-      d3d_context_->VSSetConstantBuffers( 2, 1, cb_changes_every_frame_.GetAddressOf() );
-      d3d_context_->PSSetShader( p_shader_.Get(), NULL, 0 );
-      d3d_context_->PSSetConstantBuffers( 2, 1, cb_changes_every_frame_.GetAddressOf() );
-      d3d_context_->PSSetShaderResources( 0, 1, shader_res_view_.GetAddressOf() );
-      d3d_context_->PSSetSamplers( 0, 1, sampler_state_.GetAddressOf() );
+    // 四角形
+    d3d_context_->VSSetShader( v_shader_.Get(), NULL, 0 );
+    d3d_context_->VSSetConstantBuffers( 0, 1, cb_never_changes_.GetAddressOf() );
+    d3d_context_->VSSetConstantBuffers( 1, 1, cb_change_on_resize_.GetAddressOf() );
+    d3d_context_->VSSetConstantBuffers( 2, 1, cb_changes_every_frame_.GetAddressOf() );
+    d3d_context_->PSSetShader( p_shader_.Get(), NULL, 0 );
+    d3d_context_->PSSetConstantBuffers( 2, 1, cb_changes_every_frame_.GetAddressOf() );
+    d3d_context_->PSSetShaderResources( 0, 1, shader_res_view_.GetAddressOf() );
+    d3d_context_->PSSetSamplers( 0, 1, sampler_state_.GetAddressOf() );
 
-      d3d_context_->DrawIndexed( 6, 0, 0 );
+    d3d_context_->DrawIndexed( 6, 0, 0 );
 
-      // 画面に転送
-      IDXGISurface1Ptr surface;
-      THROW_IF_ERR(back_buffer_.As<IDXGISurface1>(&surface));
-      HDC sdc;
-      THROW_IF_ERR(surface->GetDC( FALSE, &sdc ));
+    // 画面に転送
+    IDXGISurface1Ptr surface;
+    THROW_IF_ERR(back_buffer_.As<IDXGISurface1>(&surface));
+    HDC sdc;
+    THROW_IF_ERR(surface->GetDC( FALSE, &sdc ));
 
-      //get_dc ddc(hwnd_);
-      get_window_dc ddc(hwnd_);
-//      RECT rc;
-//      GetWindowRect(hwnd_,&rc);
-/*      POINT wnd_pos = {rc.left,rc.top};
-      SIZE  wnd_size = {width_,height_};
-  */
-      //BLENDFUNCTION blend;
-  //    blend.BlendOp = AC_SRC_OVER;
-  //    blend.BlendFlags = 0;
-  //    blend.SourceConstantAlpha = 128; // 不透明度（レイヤードウィンドウ全体のアルファvalue）
-  //    blend.AlphaFormat = AC_SRC_ALPHA;
-      // デバイスコンテキストにおけるレイヤの位置
-      POINT po;
-      po.x = po.y = 0;
-      BOOL err;
-      err = BitBlt(ddc.get(),0,0,width_,height_,sdc,0,0,SRCCOPY);
-//      err = AlphaBlend(ddc.get(),0,0,width_,height_,sdc,0,0,width_,height_,blend);
-      //err = UpdateLayeredWindow(hwnd_, ddc.get(), &wnd_pos, &wnd_size, sdc, &po, RGB(255,0,0), &blend, ULW_ALPHA | ULW_COLORKEY );
-      BOOST_ASSERT(err == TRUE);
-      surface->ReleaseDC( NULL);
-      surface.Reset();
-      // OMステージに登録する
-      d3d_context_->OMSetRenderTargets( 1, view_.GetAddressOf(), depth_view_.Get() );
+    //get_dc ddc(hwnd_);
+    get_window_dc ddc(hwnd_);
+    //      RECT rc;
+    //      GetWindowRect(hwnd_,&rc);
+    //      POINT wnd_pos = {rc.left,rc.top};
+    //      SIZE  wnd_size = {width_,height_};
+    //
+    //BLENDFUNCTION blend;
+    //    blend.BlendOp = AC_SRC_OVER;
+    //    blend.BlendFlags = 0;
+    //    blend.SourceConstantAlpha = 128; // 不透明度（レイヤードウィンドウ全体のアルファvalue）
+    //    blend.AlphaFormat = AC_SRC_ALPHA;
+    // デバイスコンテキストにおけるレイヤの位置
+    POINT po;
+    po.x = po.y = 0;
+    BOOL err;
+    err = BitBlt(ddc.get(),0,0,width_,height_,sdc,0,0,SRCCOPY);
+    //      err = AlphaBlend(ddc.get(),0,0,width_,height_,sdc,0,0,width_,height_,blend);
+    //err = UpdateLayeredWindow(hwnd_, ddc.get(), &wnd_pos, &wnd_size, sdc, &po, RGB(255,0,0), &blend, ULW_ALPHA | ULW_COLORKEY );
+    BOOST_ASSERT(err == TRUE);
+    surface->ReleaseDC( NULL);
+    surface.Reset();
+    // OMステージに登録する
+    d3d_context_->OMSetRenderTargets( 1, view_.GetAddressOf(), depth_view_.Get() );
     }
-
+    */
   }
 
- template <typename ProcType>
+  template <typename ProcType>
   typename base_win32_window<ProcType>::result_t base_win32_window<ProcType>::on_dwm_composition_changed()
   {
     BOOL enabled;
@@ -1199,6 +1389,25 @@ namespace sf
     }
     return  std::is_same<proc_t,wndproc>::value?0:FALSE;
   }
+
+   template <typename ProcType>
+   typename base_win32_window<ProcType>::result_t base_win32_window<ProcType>::on_activate(int active,bool minimized)
+   {
+     activate_ = (active != 0);
+     if(activate_ && init_)
+     {
+       resize_resources();
+     }
+     return std::is_same<proc_t,wndproc>::value?0:FALSE;
+   }
+
+   template <typename ProcType>
+   typename base_win32_window<ProcType>::result_t base_win32_window<ProcType>::on_display_change(uint32_t bpp,uint32_t h_resolution,uint32_t v_resolution) 
+   {
+     invalidate_rect();
+     return std::is_same<proc_t,wndproc>::value?0:FALSE;
+   }
+
   template struct base_win32_window<wndproc>;
   template struct base_win32_window<dlgproc>;
 

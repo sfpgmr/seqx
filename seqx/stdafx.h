@@ -112,7 +112,6 @@
 //#include <d3dxGlobal.h>
 #include <d3dcompiler.h>
 #include "DirectXMath.h"
-//#include <xnamath.h>
 
 // Direct2D
 

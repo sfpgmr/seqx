@@ -96,22 +96,22 @@ namespace sf {
 
   }
 
-  void debug_out(const char * file_name,const int line,boost::wformat& fmt)
+  void debug_log(const char * file_name,const int line,boost::wformat& fmt)
   {
     OutputDebugString((boost::wformat(_T("%s(%d) %s \n")) % std::wstring(sf::code_converter<char,wchar_t>(file_name)) % line % fmt).str().c_str());
   };
 
-  void debug_out(const char * file_name,const int line,const std::wstring& str)
+  void debug_log(const char * file_name,const int line,const std::wstring& str)
   {
     OutputDebugString((boost::wformat(_T("%s(%d) %s \n")) % std::wstring(sf::code_converter<char,wchar_t>(file_name)) % line % str).str().c_str());
   };
 
-  void debug_out(const char * file_name,const int line,const char* str)
+  void debug_log(const char * file_name,const int line,const char* str)
   {
     OutputDebugString((boost::wformat(_T("%s(%d) %s \n")) % std::wstring(sf::code_converter<char,wchar_t>(file_name)) %  line % sf::code_converter<char,wchar_t>(str)).str().c_str());
   }
 
-  void debug_outW(const char * file_name,const int line,const wchar_t* str)
+  void debug_logW(const char * file_name,const int line,const wchar_t* str)
   {
     OutputDebugString((boost::wformat(_T("%s(%d) %s \n")) % std::wstring(sf::code_converter<char,wchar_t>(file_name)) % line % str).str().c_str());
   };

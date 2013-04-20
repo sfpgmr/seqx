@@ -228,7 +228,7 @@ loop_end:
       }
       wasapi_output_.reset();
     }
-    DOUT(L"***** output_threadは終了!" << std::endl);
+    debug_out(L"***** output_threadは終了!\n");
     agent::done();
   };
 

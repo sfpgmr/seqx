@@ -248,7 +248,7 @@ namespace sf{
     REFERENCE_TIME psl;
     THROW_IF_ERR(audio_client_->GetStreamLatency(&psl));
 #ifdef _DEBUG
-    wdout << L"StreamLatency:" << psl << endl;
+    debug_out(boost::wformat(L"StreamLatency: %d \n") % psl);
 #endif
     //      wdout
 

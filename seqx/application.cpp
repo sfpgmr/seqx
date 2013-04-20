@@ -31,10 +31,14 @@ Boston, MA 02111-1307 USA
 #include "midi_input.h"
 #include "midi_output.h"
 
-#if _DEBUG
+#ifdef _DEBUG
 #define _CRTDBG_MAP_ALLOC
 #include <crtdbg.h>
 #define new new(_NORMAL_BLOCK, __FILE__, __LINE__)
+#endif
+
+#ifdef _DEBUG
+sf::wdstream wdout;
 #endif
 
 #ifndef HINST_THISCOMPONENT
@@ -47,9 +51,9 @@ using namespace std;
 
 namespace sf {
 #ifdef _DEBUG
-  std::wstring application::app_id_(L"SF.async_debug");
+  std::wstring application::app_id_(L"SF.seqx_debug");
 #else
-  std::wstring application::app_id_(L"SF.async");
+  std::wstring application::app_id_(L"SF.seqx");
 #endif
 
   application::application()
@@ -78,8 +82,8 @@ namespace sf {
     UNREFERENCED_PARAMETER(lpCmdLine);
 
     // wcoutで文字化けしないように、ロケールをデフォルト言語に設定する
-    std::wcout.imbue(std::locale(""));
     wdout.imbue(std::locale(""));
+    std::wcout.imbue(std::locale(""));
 
     // 2重起動の防止処理
     SECURITY_DESCRIPTOR sd;
@@ -132,14 +136,14 @@ namespace sf {
 
     // デバイス列挙を待つ
     sf::wasapi_device_manager::instance()->wait_enum_devices();
-    // sf::wasapi_device_manager::instance()->current_output_device();
+    sf::wasapi_device_manager::instance()->current_output_device();
 
     // MIDIデバイスの列挙
     const midi_device_manager::ptr& ptr = midi_device_manager::instance();
 
-    // ダイアログウィンドウを作成する
+    // ウィンドウを作成する
     window_ = sf::create_toplevel_window(
-      std::wstring(L"Media Player サンプル"),std::wstring(L"Media Player サンプル"));
+      std::wstring(L"Media Player サンプル"),std::wstring(L"Media Player サンプル"),5,false,::GetSystemMetrics(SM_CXSCREEN),::GetSystemMetrics(SM_CYSCREEN));
     ////  ファイルリーダーエージェントの起動
     //reader_agent_.start();
     //// キャプチャエージェントの起動
@@ -164,7 +168,8 @@ namespace sf {
 
 
     // メッセージ処理ループ
-    WPARAM ret = sf::dialog_message_loop(reinterpret_cast<HWND>(window_->raw_handle()))();
+    WPARAM ret = sf::run_message_loop()();
+    // WPARAM ret = sf::dialog_message_loop(reinterpret_cast<HWND>(window_->raw_handle()))();
 
     // マルチメディアタイマの粒度を元に戻す。
     timeEndPeriod(1);
@@ -178,6 +183,7 @@ namespace sf {
 
     // プレイヤーのシャットダウン処理を行いリソースを解放する
 //    player_->process_event(sf::player::ev::Close());
+
 
     return ret;
   }

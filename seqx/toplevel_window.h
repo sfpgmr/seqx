@@ -64,13 +64,6 @@ namespace sf
     void update();
     void render();
 
-    void player_ready();
-    void player_read_file();
-    void player_pause();
-    void player_stop();
-   
-    void enable_control(uint32_t id,bool enable);
-
   private:
     struct impl;
     toplevel_window(const std::wstring& menu_name,const std::wstring& name,bool fit_to_display,float width = 800 ,float height = 600);
