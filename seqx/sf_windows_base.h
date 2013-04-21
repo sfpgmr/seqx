@@ -405,14 +405,17 @@ namespace sf{
 
     virtual void create_device_independent_resources();
     virtual void create_device();
+
     virtual void create_swapchain_dependent_resources();
+    virtual void create_d2d_render_target();
 
     virtual void discard_swapchain_dependent_resources();
+    virtual void restore_swapchain_and_dependent_resources();
     virtual void discard_device();
     virtual void discard_device_independant_resources();
+    virtual void discard_d2d_render_target();
 
   protected:
-
     base_win32_window(
       const std::wstring& title,
       const std::wstring& name,bool fit_to_display,
@@ -545,7 +548,6 @@ namespace sf{
     virtual void render();
   protected:
     void get_dxgi_information();
-    void resize_resources();
 
     // Window生成後呼ばれる関数
     // WM_NCCREATEメッセージの時にthunkに切り替える
@@ -624,7 +626,9 @@ namespace sf{
     IDXGIOutput1Ptr dxgi_output_;
     IDXGIDevice2Ptr dxgi_device_;
     IDXGISurface2Ptr dxgi_back_buffer_;
-    DXGI_MODE_DESC1 actual_desc_;
+    DXGI_MODE_DESC1 mode_desc_;
+    DXGI_SWAP_CHAIN_DESC1 swap_chain_desc_;
+    DXGI_SWAP_CHAIN_FULLSCREEN_DESC swap_chain_fullscreen_desc_;
     IDXGISwapChain1Ptr dxgi_swap_chain_;
     std::wstring dxgi_info_;
 
@@ -632,27 +636,26 @@ namespace sf{
     ID3D11DeviceContextPtr d3d_context_;
     ID3D11Texture2DPtr back_buffer_;
 
-    //ID3D11RenderTargetViewPtr view_;
-    //ID3D11Texture2DPtr depth_texture_;
-    //ID3D11DepthStencilViewPtr depth_view_;
-    //ID3D11VertexShaderPtr v_shader_;
-    //ID3D11InputLayoutPtr input_layout_;
-    //ID3D11PixelShaderPtr p_shader_;
-    //ID3D11BufferPtr v_buffer_;
-    //ID3D11BufferPtr i_buffer_;
-    //ID3D11BufferPtr cb_never_changes_;
-    //ID3D11BufferPtr cb_change_on_resize_;
-    //ID3D11BufferPtr cb_changes_every_frame_;
-    //ID3D11ShaderResourceViewPtr shader_res_view_;
-    //ID3D11SamplerStatePtr sampler_state_;
-    //ID3D11Texture2DPtr back_buffer_;
+    ID3D11RenderTargetViewPtr d3d_render_target_view_;
+    ID3D11Texture2DPtr d3d_depth_texture_;
+    ID3D11DepthStencilViewPtr depth_view_;
+    ID3D11VertexShaderPtr v_shader_;
+    ID3D11InputLayoutPtr input_layout_;
+    ID3D11PixelShaderPtr p_shader_;
+    ID3D11BufferPtr v_buffer_;
+    ID3D11BufferPtr i_buffer_;
+    ID3D11BufferPtr cb_never_changes_;
+    ID3D11BufferPtr cb_change_on_resize_;
+    ID3D11BufferPtr cb_changes_every_frame_;
+    ID3D11ShaderResourceViewPtr shader_res_view_;
+    ID3D11SamplerStatePtr sampler_state_;
     
-    //ID3D11SamplerStatePtr cube_sampler_state_;
-    //ID3D11Texture2DPtr cube_texture_;
-    //ID3D11Texture2DPtr cube_depth_texture_;
-    //ID3D11ShaderResourceViewPtr cube_shader_res_view_;
-    //ID3D11RenderTargetViewPtr cube_view_;
-    //ID3D11DepthStencilViewPtr cube_depth_view_;
+ /*   ID3D11SamplerStatePtr cube_sampler_state_;
+    ID3D11Texture2DPtr cube_texture_;
+    ID3D11Texture2DPtr cube_depth_texture_;
+    ID3D11ShaderResourceViewPtr cube_shader_res_view_;
+    ID3D11RenderTargetViewPtr cube_view_;
+    ID3D11DepthStencilViewPtr cube_depth_view_;*/
 
 
 	
@@ -666,6 +669,7 @@ namespace sf{
     float client_width_,client_height_;
 
     bool activate_;
+    bool fullscreen_;
     timer timer_;
 
     // __declspec ( thread ) static std::queue<proc_t::proc_type> ptrs_ ;// thread local storage

@@ -129,7 +129,7 @@ namespace sf
       ,thumb_start_(false)
     {
 
-      on_render.connect(boost::bind(&impl::render,this));
+      //on_render.connect(boost::bind(&impl::render,this));
     };
 
     ~impl(){
@@ -196,75 +196,6 @@ namespace sf
       client_width_ = rc.right - rc.left;
       client_height_ = rc.bottom - rc.top;
     }
-
-    void render(){
-     if(activate_){
-      d2d_context_->BeginDraw();
-      d2d_context_->Clear();
-
-
-      //thunk_proc_ = (WNDPROC)thunk_.getCode();
-      D2D_RECT_F layout_rect_ = D2D1::RectF(0.0f,100.0f,400.0f,100.0f);
-      // Text Formatの作成
-      THROW_IF_ERR(write_factory_->CreateTextFormat(
-        L"メイリオ",                // Font family name.
-        NULL,                       // Font collection (NULL sets it to use the system font collection).
-        DWRITE_FONT_WEIGHT_REGULAR,
-        DWRITE_FONT_STYLE_NORMAL,
-        DWRITE_FONT_STRETCH_NORMAL,
-        48.0f,
-        L"ja-jp",
-        &write_text_format_
-        ));
-
-      d2d_context_->SetTransform(D2D1::Matrix3x2F::Identity());
-      ID2D1SolidColorBrushPtr brush,line_brush;
-      d2d_context_->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::OrangeRed), &brush);
-      d2d_context_->CreateSolidColorBrush(D2D1::ColorF(1.0f,1.0f,1.0f,0.5f), &line_brush);
-
-      {
-        D2D_POINT_2F start,end;
-        for(float i = 0;i < width_+1.0f;i += 16.0f)
-        {
-          start.x = end.x = i;
-          end.y = height_;
-          start.y = 0.0f;
-          d2d_context_->DrawLine(start,end,line_brush.Get(),0.5f);
-        }
-
-        for(float i = 0;i < height_+1.0f;i += 16.0f)
-        {
-          start.y = end.y = i;
-          end.x = width_;
-          start.x = 0.0f;
-          d2d_context_->DrawLine(start,end,line_brush.Get(),0.5f);
-        }
-
-      }
-
-      static int count;
-      count++;
-      std::wstring m((boost::wformat(L"TEST表示 %d") % count).str());
-      d2d_context_->DrawTextW(
-        m.c_str(),
-        m.size(),
-        write_text_format_.Get(),
-        layout_rect_, 
-        brush.Get());
-
-      d2d_context_->EndDraw();
-      DXGI_PRESENT_PARAMETERS parameters = {};
-      parameters.DirtyRectsCount = 0;
-      parameters.pDirtyRects = nullptr;
-      parameters.pScrollRect = nullptr;
-      parameters.pScrollOffset = nullptr;
-      if(FAILED(dxgi_swap_chain_->Present1(1,0,&parameters)))
-      {
-        resize_resources();
-      };
-      }
-    }
-
 
     //void create_window()
     //{
