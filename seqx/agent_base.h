@@ -65,7 +65,7 @@ namespace sf
       event_.reset();
       status_.store(value,o);
       event_.set();
-      DOUT(L"change_status()" << std::endl);
+      //DOUT(L"change_status()" << std::endl);
     }
 
     void wait_event()
@@ -94,7 +94,7 @@ namespace sf
 
     void wait_status(int value,int ms = 1,std::memory_order o = std::memory_order_seq_cst)
     {
-      DOUT(L"wait_status()" << std::endl);
+     // DOUT(L"wait_status()" << std::endl);
       int s;
       while(s = status_.load(o),s != value)
       {

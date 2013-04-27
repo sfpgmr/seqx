@@ -28,6 +28,7 @@
 #include "async_reader.h"
 #include "sf_memory.h"
 #include "toplevel_window.h"
+#include "dcomposition_window.h"
 #include "Player.h"
 #include "reader_agent.h"
 #include "output_agent.h"
@@ -153,7 +154,7 @@ private:
 // -----------------------------  
 
   std::wstring base_directory_;
-  sf::toplevel_window_ptr window_;
+  sf::dcomposition_window_ptr window_;
 
 
 };

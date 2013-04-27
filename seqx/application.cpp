@@ -142,10 +142,10 @@ namespace sf {
     const midi_device_manager::ptr& ptr = midi_device_manager::instance();
 
     // ウィンドウを作成する
-    window_ = sf::create_toplevel_window(
-      std::wstring(L"Media Player サンプル"),std::wstring(L"Media Player サンプル"),5,false,::GetSystemMetrics(SM_CXSCREEN),::GetSystemMetrics(SM_CYSCREEN));
+    window_ = sf::create_dcomposition_window(
+      std::wstring(L"DirectComposition サンプル"),std::wstring(L"DirectComposition サンプル"),5,false,::GetSystemMetrics(SM_CXSCREEN),::GetSystemMetrics(SM_CYSCREEN));
     ////  ファイルリーダーエージェントの起動
-    //reader_agent_.start();
+    reader_agent_.start();
     //// キャプチャエージェントの起動
     //input_agent_.start();
     //// wasapi入力スレッドの起動
@@ -166,6 +166,8 @@ namespace sf {
 
     }
 
+    reader_agent_.setup(L"E:\\i_backup\\data\\1-01 RYDEEN.wav");
+    reader_agent_.read_file();
 
     // メッセージ処理ループ
     WPARAM ret = sf::run_message_loop()();
@@ -176,11 +178,13 @@ namespace sf {
 
     output_agent_.change_status(output_agent_t::status_exit);
 
-    //  スレッド終了待ち
-    //std::array<Concurrency::agent*,3> agents = {/*&mixer_agent_,*/&reader_agent_,&output_agent_,&input_agent_};
-    //Concurrency::agent::wait_for_all(agents.size(),&agents[0]);
-    Concurrency::agent::wait(&output_agent_);
+    reader_agent_.change_status(reader_agent_t::status_exit);
 
+    //  スレッド終了待ち
+    std::array<Concurrency::agent*,2> agents = {/*&mixer_agent_,*/&reader_agent_,&output_agent_/*,&input_agent_*/};
+    Concurrency::agent::wait_for_all(agents.size(),&agents[0]);
+    //Concurrency::agent::wait(&output_agent_);
+    
     // プレイヤーのシャットダウン処理を行いリソースを解放する
 //    player_->process_event(sf::player::ev::Close());
 

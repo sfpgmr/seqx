@@ -104,6 +104,7 @@
 
 #include "dxgi.h"
 #include <dxgi1_2.h>
+#include <dxgidebug.h>
 #include "d3d11_1.h"
 #include <d3d11shader.h>
 #include <DDSTextureLoader.h>
@@ -112,20 +113,29 @@
 //#include <d3dxGlobal.h>
 #include <d3dcompiler.h>
 #include "DirectXMath.h"
+#include <d3dcsx.h>
+#include <d3d11shadertracing.h>
 
 // Direct2D
 
 #include <d2d1_1.h>
 #include <d2d1helper.h>
+#include <d2d1effects.h>
+#include <d2d1effecthelpers.h>
 
 // Direct Write
 
 #include <dwrite.h>
+#include <dwrite_1.h>
 
 // DWM
 
 #include "dwmapi.h" 
 #include "Shobjidl.h"
+
+// DirectComposition
+
+#include <dcomp.h>
 
 #include <wincodec.h>
 #include <wincodecsdk.h>

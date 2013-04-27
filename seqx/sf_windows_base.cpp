@@ -28,6 +28,7 @@
 #pragma comment( lib, "Shlwapi.lib" ) 
 #pragma comment( lib, "DWMApi.lib" )
 #pragma comment( lib,"msimg32.lib")
+#pragma comment(lib,"dcomp.lib")
 
 #ifndef HINST_THISCOMPONENT
 EXTERN_C IMAGE_DOS_HEADER __ImageBase;
@@ -64,6 +65,34 @@ namespace sf
     //hr = DwmExtendFrameIntoClientArea( hwnd, &mgn );
     /*   }*/
     return hr;
+  }
+  template <typename ProcType> 
+  base_win32_window<ProcType>::~base_win32_window()
+  {
+
+  }
+
+  template <typename ProcType> 
+  base_win32_window<ProcType>::base_win32_window(
+    const std::wstring& title,const std::wstring& name,bool fit_to_display,float width,float height
+    )
+    : title_(title),name_(name),
+    fit_to_display_(fit_to_display),
+    width_(width),height_(height),
+    thunk_(this,reinterpret_cast<ProcType::proc_type>(base_win32_window::WndProc)),
+    hwnd_(0),timer_(*this,10),
+    fullscreen_(true)
+  {
+    ZeroMemory(&mode_desc_,sizeof(mode_desc_));
+    ZeroMemory(&swap_chain_desc_,sizeof(swap_chain_desc_));
+    ZeroMemory(&swap_chain_fullscreen_desc_,sizeof(swap_chain_fullscreen_desc_));
+
+    width_ = dpi_.scale_x(width_);
+    height_ = dpi_.scale_y(height_);
+    memset(&wp_,0,sizeof(wp_));
+    wp_.length = sizeof(WINDOWPLACEMENT);
+    thunk_proc_ = (WNDPROC)thunk_.getCode();
+    create_device_independent_resources();
   }
 
   template <typename ProcType> 
@@ -238,27 +267,6 @@ namespace sf
   template <typename ProcType> 
   void base_win32_window<ProcType>::update() {::UpdateWindow(hwnd_);}
 
-  template <typename ProcType> 
-  base_win32_window<ProcType>::~base_win32_window()
-  {
-
-  }
-
-  template <typename ProcType> 
-  base_win32_window<ProcType>::base_win32_window(const std::wstring& title,const std::wstring& name,bool fit_to_display,float width,float height)
-    : title_(title),name_(name),fit_to_display_(fit_to_display),width_(width),height_(height),thunk_(this,reinterpret_cast<ProcType::proc_type>(base_win32_window::WndProc)),hwnd_(0),timer_(*this,10),fullscreen_(false)
-  {
-    ZeroMemory(&mode_desc_,sizeof(mode_desc_));
-    ZeroMemory(&swap_chain_desc_,sizeof(swap_chain_desc_));
-    ZeroMemory(&swap_chain_fullscreen_desc_,sizeof(swap_chain_fullscreen_desc_));
-
-    width_ = dpi_.scale_x(width_);
-    height_ = dpi_.scale_y(height_);
-    memset(&wp_,0,sizeof(wp_));
-    wp_.length = sizeof(WINDOWPLACEMENT);
-    thunk_proc_ = (WNDPROC)thunk_.getCode();
-    create_device_independent_resources();
-  }
 
   template <typename ProcType> 
   typename base_win32_window<ProcType>::result_t base_win32_window<ProcType>::on_nccreate(CREATESTRUCT *p)
@@ -560,7 +568,7 @@ namespace sf
     if(!write_factory_){
       THROW_IF_ERR(::DWriteCreateFactory(
         DWRITE_FACTORY_TYPE_SHARED,
-        __uuidof(IDWriteFactory),
+        __uuidof(IDWriteFactory1),
         reinterpret_cast<IUnknown**>(write_factory_.GetAddressOf())
         ));
     }
@@ -1557,12 +1565,12 @@ namespace sf
       D2D_RECT_F layout_rect_ = D2D1::RectF(0.0f,100.0f,400.0f,100.0f);
       // Text Formatの作成
       THROW_IF_ERR(write_factory_->CreateTextFormat(
-        L"メイリオ",                // Font family name.
+        L"ＭＳ ゴシック",                // Font family name.
         NULL,                       // Font collection (NULL sets it to use the system font collection).
         DWRITE_FONT_WEIGHT_REGULAR,
         DWRITE_FONT_STYLE_NORMAL,
         DWRITE_FONT_STRETCH_NORMAL,
-        48.0f,
+        16.000f,
         L"ja-jp",
         &write_text_format_
         ));
@@ -1594,7 +1602,7 @@ namespace sf
 
       static int count;
       count++;
-      std::wstring m((boost::wformat(L"TEST表示 %d") % count).str());
+      std::wstring m((boost::wformat(L"ＡＡＢＢＣＣＤＤＥＥＦＦTEST表示%08d　 ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789アイウエオあいうえお") % count).str());
       d2d_context_->DrawTextW(
         m.c_str(),
         m.size(),
@@ -1637,6 +1645,9 @@ namespace sf
       // フリップ
 
       DXGI_PRESENT_PARAMETERS parameters = {};
+      static int off = 0;
+      POINT offset = {0,off--};
+      RECT srect ={0,0,width_,height_};
       parameters.DirtyRectsCount = 0;
       parameters.pDirtyRects = nullptr;
       parameters.pScrollRect = nullptr;

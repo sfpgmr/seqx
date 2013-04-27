@@ -157,6 +157,7 @@
     <ClCompile Include="base_window.cpp" />
     <ClCompile Include="code_converter.cpp" />
     <ClCompile Include="config_tab_dialog.cpp" />
+    <ClCompile Include="dcomposition_window.cpp" />
     <ClCompile Include="dpi.cpp" />
     <ClCompile Include="exception.cpp" />
     <ClCompile Include="icon.cpp" />
@@ -203,6 +204,7 @@
     <ClInclude Include="audio_source.h" />
     <ClInclude Include="code_converter.h" />
     <ClInclude Include="config_tab_dialog.h" />
+    <ClInclude Include="dcomposition_window.h" />
     <ClInclude Include="dout.h" />
     <ClInclude Include="dpi.h" />
     <ClInclude Include="exception.h" />
