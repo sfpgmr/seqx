@@ -166,7 +166,7 @@ namespace sf {
 
     }
 
-    reader_agent_.setup(L"E:\\i_backup\\data\\1-01 RYDEEN.wav");
+    reader_agent_.setup(L"test.wav");
     reader_agent_.read_file();
 
     // メッセージ処理ループ
@@ -187,7 +187,6 @@ namespace sf {
     
     // プレイヤーのシャットダウン処理を行いリソースを解放する
 //    player_->process_event(sf::player::ev::Close());
-
 
     return ret;
   }

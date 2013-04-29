@@ -93,7 +93,8 @@ inline void debug_out(wchar_t* s)
 }
 extern sf::wdstream wdout;
 //#define wdout sf::wdout_instance::instance()->wdout
-#define DOUT(x) wdout << x 
+//#define DOUT(x) wdout << x 
+#define DOUT(x) 
 
 #else
 #define DOUT(x) 

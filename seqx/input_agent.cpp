@@ -153,7 +153,7 @@ namespace sf {
     }
 loop_end:
     ;
-    DOUT(L"##### input_threadは終了！" << endl);
+    debug_out(L"##### input_threadは終了！\n");
     if(wasapi_input_ && wasapi_input_->is_start())
     {
       wasapi_input_->stop();

@@ -150,9 +150,10 @@ namespace sf
       THROW_IF_ERR(dcomp_device_->CreateTargetForHwnd(hwnd_,TRUE,&dcomp_target_));
       IDCompositionSurfacePtr dcomp_surf;
       RECT surf_rect = {0,0,200,200};
-      THROW_IF_ERR(dcomp_device_->CreateSurface(surf_rect.right,surf_rect.bottom,swap_chain_desc_.Format,DXGI_ALPHA_MODE_UNSPECIFIED,&dcomp_surf));
+      THROW_IF_ERR(dcomp_device_->CreateSurface(surf_rect.right,surf_rect.bottom,swap_chain_desc_.Format,DXGI_ALPHA_MODE_PREMULTIPLIED,&dcomp_surf));
       IDXGISurfacePtr dxgi_surf;
       POINT offset;
+
       THROW_IF_ERR(dcomp_surf->BeginDraw(&surf_rect,IID_PPV_ARGS(&dxgi_surf),&offset));
 
       D2D1_BITMAP_PROPERTIES1 bitmap_prop = D2D1::BitmapProperties1( 
@@ -169,7 +170,8 @@ namespace sf
       d2d_context_->SetTarget(d2dtarget_bitmap.Get());
 
       ID2D1SolidColorBrushPtr brush,tbrush;
-      THROW_IF_ERR(d2d_context_->CreateSolidColorBrush(D2D1::ColorF(1.0f,0.0f,0.0f),&brush));
+      float alpha = 0.5f;
+      THROW_IF_ERR(d2d_context_->CreateSolidColorBrush(D2D1::ColorF(1.0f,0.0f,0.0f,alpha),&brush));
       THROW_IF_ERR(d2d_context_->CreateSolidColorBrush(D2D1::ColorF(1.0f,1.0f,1.0f),&tbrush));
       IDWriteTextFormatPtr format;
       // Text Formatの作成
@@ -191,17 +193,17 @@ namespace sf
       d2d_context_->FillRectangle(D2D1::RectF(0.0f,0.0f,w,h),brush.Get());
       d2d_context_->DrawTextW(t.c_str(),t.size(),format.Get(),D2D1::RectF(0.0f,0.0f,w,h),tbrush.Get());
 
-      brush->SetColor(D2D1::ColorF(0.0f,1.0f,0.0f));
+      brush->SetColor(D2D1::ColorF(0.0f,1.0f,0.0f,alpha));
       d2d_context_->FillRectangle(D2D1::RectF(w,0.0f,w + w,h),brush.Get());
       t = L"DirectComposition2";
       d2d_context_->DrawTextW(t.c_str(),t.size(),format.Get(),D2D1::RectF(w,0.0f,w + w,h),tbrush.Get());
-      brush->SetColor(D2D1::ColorF(0.0f,0.0f,1.0f));
-      d2d_context_->FillRectangle(D2D1::RectF(w,h,w + w,h + h),brush.Get());
-      t = L"DirectComposition3";
-      d2d_context_->DrawTextW(t.c_str(),t.size(),format.Get(),D2D1::RectF(w,h,w + w,h + h),tbrush.Get());
-      brush->SetColor(D2D1::ColorF(1.0f,0.0f,1.0f));
-      d2d_context_->FillRectangle(D2D1::RectF(0,h,w,h + h),brush.Get());
+      brush->SetColor(D2D1::ColorF(0.0f,0.0f,1.0f,alpha));
       t = L"DirectComposition4";
+      d2d_context_->FillRectangle(D2D1::RectF(w,h,w + w,h + h),brush.Get());
+      d2d_context_->DrawTextW(t.c_str(),t.size(),format.Get(),D2D1::RectF(w,h,w + w,h + h),tbrush.Get());
+      brush->SetColor(D2D1::ColorF(1.0f,0.0f,1.0f,alpha));
+      d2d_context_->FillRectangle(D2D1::RectF(0,h,w,h + h),brush.Get());
+      t = L"DirectComposition3";
       d2d_context_->DrawTextW(t.c_str(),t.size(),format.Get(),D2D1::RectF(0,h,w,h + h),tbrush.Get());
 
       d2d_context_->EndDraw();
@@ -212,8 +214,9 @@ namespace sf
       IDCompositionVisualPtr v,v1,v2,v3,v4;
       THROW_IF_ERR(dcomp_device_->CreateVisual(&v));
       THROW_IF_ERR(v->SetContent(dcomp_surf.Get()));
-      v->SetOffsetX(width_ / 2.0f);
-      v->SetOffsetY(height_ / 5.0f);
+
+//      v->SetOffsetX(width_ / 2.0f);
+//      v->SetOffsetY(height_ / 5.0f);
 
       dcomp_target_->SetRoot(v.Get());
 
@@ -236,7 +239,17 @@ namespace sf
       v3->SetOffsetX(w * 3.0f);
       v4->SetOffsetX(w * 4.0f);
 
-      v1->SetClip(D2D1::RectF(0.0f,0.0f,w-1.0f,h-1.0f));
+      IDCompositionRectangleClipPtr clip;
+      dcomp_device_->CreateRectangleClip(&clip);
+      clip->SetLeft(0.0f);
+      clip->SetRight(w-1.0f);
+      clip->SetTop(0.0f);
+      clip->SetBottom(h-1.0f);
+      THROW_IF_ERR(clip->SetTopLeftRadiusX(3.0f));
+      THROW_IF_ERR(clip->SetBottomLeftRadiusX(3.0f));
+
+      //v1->SetClip(D2D1::RectF(0.0f,0.0f,w-1.0f,h-1.0f));
+      v1->SetClip(clip.Get());
       v2->SetClip(D2D1::RectF(0.0f,h,w -1.0f,h + h -1.0f));
       v3->SetClip(D2D1::RectF(w,0.0f,w + w - 1.0f,h - 1.0f));
       v4->SetClip(D2D1::RectF(w,h,w+w - 1.0f,h+h - 1.0f));
@@ -246,6 +259,44 @@ namespace sf
       v->AddVisual(v3.Get(),FALSE,nullptr);
       v->AddVisual(v4.Get(),FALSE,nullptr);
 
+      // 2D Transform のセットアップ
+      {
+        IDCompositionTransform* transforms[3];
+
+        IDCompositionTransformPtr transform_group;
+
+        THROW_IF_ERR(dcomp_device_->CreateRotateTransform(&rot_));
+        THROW_IF_ERR(dcomp_device_->CreateRotateTransform(&rot_child_));
+        THROW_IF_ERR(dcomp_device_->CreateScaleTransform(&scale_));
+        THROW_IF_ERR(dcomp_device_->CreateTranslateTransform(&trans_));
+
+
+        rot_->SetCenterX(w);
+        rot_->SetCenterY(h);
+        rot_->SetAngle(0.0f);
+
+        rot_child_->SetCenterX(w/2.0f);
+        rot_child_->SetCenterY(w/2.0f);
+
+        scale_->SetCenterX(w);
+        scale_->SetCenterY(h);
+        scale_->SetScaleX(2.0f);
+        scale_->SetScaleY(2.0f);
+
+        trans_->SetOffsetX((width_ - surf_rect.right)/2.0f);
+        trans_->SetOffsetY((height_ - surf_rect.bottom)/2.0f);
+
+        transforms[0] = rot_.Get();
+        transforms[1] = scale_.Get();
+        transforms[2] = trans_.Get();
+
+        THROW_IF_ERR(dcomp_device_->CreateTransformGroup(transforms,3,&transform_group));
+        v->SetTransform(transform_group.Get());
+        v1->SetTransform(rot_child_.Get());
+        v2->SetTransform(rot_child_.Get());
+        v3->SetTransform(rot_child_.Get());
+        v4->SetTransform(rot_child_.Get());
+      }
       dcomp_device_->Commit();
      
  
@@ -263,6 +314,13 @@ namespace sf
     {
       dcomp_device_.Reset();
     }
+
+    void render()
+    {
+
+      base_win32_window_t::render();
+    }
+
 
     void on_player_event(HWND wnd,UINT_PTR wParam)
     {
@@ -353,6 +411,34 @@ namespace sf
       // TODO:スレッドのエラーチェックも入れておく
       //update();
       //InvalidateRect(hwnd_,NULL,FALSE);
+      static float angle = 0.0f;
+      rot_->SetAngle(angle);
+      rot_child_->SetAngle(360.0f - angle);
+      angle += 10.0f;
+
+      if(angle > 360.0f) angle -= 360.0f;
+
+      static float scale = 1.0f;
+      static float scale_add = 0.1f;
+
+      scale += scale_add;
+
+      if(scale > 10.0f) {
+        scale  = 10.0f;
+        scale_add = -scale_add;
+      } 
+
+      if(scale < 0.1f)
+      {
+        scale = 0.1f;
+        scale_add = -scale_add;
+      }
+
+      scale_->SetScaleX(scale);
+      scale_->SetScaleY(scale);
+
+      dcomp_device_->Commit();
+
       invalidate_rect();
       return TRUE;
     }
@@ -374,6 +460,9 @@ namespace sf
     D2D1_SIZE_U icon_size_;
     IDCompositionDevicePtr dcomp_device_;
     IDCompositionTargetPtr dcomp_target_;
+    IDCompositionRotateTransformPtr rot_,rot_child_;
+    IDCompositionScaleTransformPtr scale_;
+    IDCompositionTranslateTransformPtr trans_;
 
     // thisとhwndをつなぐthunkクラス
     // メンバー関数を直接呼び出す。

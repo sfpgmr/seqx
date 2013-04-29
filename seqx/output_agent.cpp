@@ -203,7 +203,7 @@ copy_end:
             {
               wasapi_output_->wait();
             } else {
-              DOUT(L"XXXX No Wait !!!! XXXX" << std::endl);
+              debug_out(L"XXXX No Wait !!!! XXXX\n");
             }
           }
           break;

@@ -117,7 +117,7 @@ void mixer_agent_t::run()
 //        WaitForSingleObject(event_.get(),WAIT_TIMEOUT_DEFAULT);
   }
   }
-    DOUT(L"***** mixerは終了!" << std::endl);
+    debug_out(L"***** mixerは終了!\n");
   agent::done();
 }
 }
