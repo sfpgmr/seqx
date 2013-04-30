@@ -17,7 +17,15 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
                      LPTSTR    lpCmdLine,
                      int       nCmdShow)
 {
-	
-  return sf::application::instance()
+	int ret = 0;
+  try {
+    ret  = sf::application::instance()
     ->execute( hInstance,hPrevInstance,lpCmdLine,nCmdShow);
+  } catch(sf::win32_error_exception& e)
+  {
+    ::MessageBox(nullptr,e.error().data(),L"アプリケーション実行エラー",MB_OK);
+    // 強制終了する
+    TerminateProcess(NULL,-1);
+  }
+  return ret;
 }

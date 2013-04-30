@@ -170,7 +170,7 @@ namespace sf
       d2d_context_->SetTarget(d2dtarget_bitmap.Get());
 
       ID2D1SolidColorBrushPtr brush,tbrush;
-      float alpha = 0.5f;
+      float alpha = 1.0f;
       THROW_IF_ERR(d2d_context_->CreateSolidColorBrush(D2D1::ColorF(1.0f,0.0f,0.0f,alpha),&brush));
       THROW_IF_ERR(d2d_context_->CreateSolidColorBrush(D2D1::ColorF(1.0f,1.0f,1.0f),&tbrush));
       IDWriteTextFormatPtr format;
@@ -297,6 +297,22 @@ namespace sf
         v3->SetTransform(rot_child_.Get());
         v4->SetTransform(rot_child_.Get());
       }
+
+      // Opacityのアニメーション
+      {
+        IDCompositionAnimationPtr anim;
+        THROW_IF_ERR(dcomp_device_->CreateAnimation(&anim));
+        anim->AddCubic(0.0f,0.0f,1.0f / 4.0f,0.0f,0.0f);
+        anim->AddCubic(4.0f,1.0f,-1.0f / 4.0f,0.0f,0.0f);
+        anim->AddRepeat(8.0f,8.0f);
+        //anim->End(10.0f,0.0f);
+
+        IDCompositionEffectGroupPtr effect;
+        dcomp_device_->CreateEffectGroup(&effect);
+        effect->SetOpacity(anim.Get());
+        v->SetEffect(effect.Get());
+      }
+
       dcomp_device_->Commit();
      
  

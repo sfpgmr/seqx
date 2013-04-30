@@ -166,7 +166,7 @@ namespace sf {
 
     }
 
-    reader_agent_.setup(L"test.wav");
+    reader_agent_.setup(L"test1.wav");
     reader_agent_.read_file();
 
     // メッセージ処理ループ
