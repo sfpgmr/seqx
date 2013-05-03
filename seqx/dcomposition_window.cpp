@@ -298,8 +298,8 @@ namespace sf
         v4->SetTransform(rot_child_.Get());
       }
 
-      // Opacityのアニメーション
       {
+        // Opacityのアニメーション
         IDCompositionAnimationPtr anim;
         THROW_IF_ERR(dcomp_device_->CreateAnimation(&anim));
         anim->AddCubic(0.0f,0.0f,1.0f / 4.0f,0.0f,0.0f);
@@ -310,6 +310,27 @@ namespace sf
         IDCompositionEffectGroupPtr effect;
         dcomp_device_->CreateEffectGroup(&effect);
         effect->SetOpacity(anim.Get());
+
+        IDCompositionAnimationPtr anim3d;
+        THROW_IF_ERR(dcomp_device_->CreateAnimation(&anim3d));
+        anim3d->AddCubic(0.0f,0.0f,360.0f / 8.0f,0.0f,0.0f);
+        anim3d->AddRepeat(8.0f,8.0f);
+
+        IDCompositionRotateTransform3DPtr rot3d;
+        dcomp_device_->CreateRotateTransform3D(&rot3d);
+        rot3d->SetAngle(anim3d.Get());
+        rot3d->SetAxisZ(0.0f);
+        rot3d->SetAxisY(0.0f);
+        rot3d->SetAxisX(1.0f);
+        rot3d->SetCenterX(w);
+        rot3d->SetCenterY(w);
+
+     //   rot3d->SetAxisX(1.0f);
+
+        effect->SetTransform3D(rot3d.Get());
+
+        // 3D変換のアニメーション
+
         v->SetEffect(effect.Get());
       }
 
@@ -427,12 +448,12 @@ namespace sf
       // TODO:スレッドのエラーチェックも入れておく
       //update();
       //InvalidateRect(hwnd_,NULL,FALSE);
-      static float angle = 0.0f;
+    /*  static float angle = 0.0f;
       rot_->SetAngle(angle);
       rot_child_->SetAngle(360.0f - angle);
       angle += 10.0f;
 
-      if(angle > 360.0f) angle -= 360.0f;
+      if(angle > 360.0f) angle -= 360.0f*/;
 
       static float scale = 1.0f;
       static float scale_add = 0.1f;
